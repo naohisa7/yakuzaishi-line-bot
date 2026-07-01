@@ -3,7 +3,7 @@ const { addMessage, getHistory, clearHistory } = require('./conversationManager'
 const { isAuthorized, authorize, getAuthorizedUsers } = require('./authManager');
 const { markAwaitingFeedback, isAwaitingFeedback, clearAwaitingFeedback } = require('./feedbackManager');
 const BROADCAST_TEMPLATES = require('./broadcastTemplates');
-const { generateLinkCode, resolveLinkCode, linkCaregiver, getCaregiversForPatient } = require('./caregiverManager');
+const { generateLinkCode, resolveLinkCode, linkPerson, getAllLinkedPeople } = require('./caregiverManager');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
 const PHARMACIST_PHONE = process.env.PHARMACIST_PHONE || '（電話番号未設定）';
@@ -117,7 +117,8 @@ function handleSpecialCommands(text, userId) {
 📋 特別なコマンド
 ・「リセット」→ 会話履歴を初期化
 ・「ヘルプ」→ このガイドを表示
-・「介護者登録」→ ご家族・介護者と連携するための番号を発行
+・「家族登録」→ ご家族と連携するための番号を発行
+・「介護者登録」→ 介護者と連携するための番号を発行
 
 🚨 緊急の場合
 症状が重い場合はすぐに119番へ`,
@@ -213,14 +214,16 @@ async function handleEvent(event, lineClient) {
 
   // ご家族・介護者の連携コード確認（未認証でも受け付ける）
   if (!isImage && /^\d{6}$/.test(userMessage.trim())) {
-    const patientId = resolveLinkCode(userMessage.trim());
-    if (patientId) {
-      linkCaregiver(patientId, userId);
+    const resolved = resolveLinkCode(userMessage.trim());
+    if (resolved) {
+      const { patientId, type } = resolved;
+      linkPerson(patientId, userId, type);
       authorize(userId);
+      const typeLabel = type === 'family' ? 'ご家族' : '介護者';
       try {
         await lineClient.pushMessage(patientId, {
           type: 'text',
-          text: 'ご家族・介護者の方との連携が完了しました😊',
+          text: `${typeLabel}の方との連携が完了しました😊`,
         });
       } catch (_) {}
       return lineClient.replyMessage(event.replyToken, {
@@ -264,11 +267,19 @@ async function handleEvent(event, lineClient) {
       });
     }
 
-    if (trimmedMessage === '介護者登録') {
-      const code = generateLinkCode(userId);
+    if (trimmedMessage === '家族登録') {
+      const code = generateLinkCode(userId, 'family');
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
-        text: `ご家族・介護者の方と連携するための番号です（10分間有効）。\n\n【${code}】\n\nこの番号をご家族・介護者の方にお伝えください。その方がこのアカウントを友だち追加し、この番号を送信すると連携が完了し、大事な通知が届くようになります。`,
+        text: `ご家族の方と連携するための番号です（10分間有効）。\n\n【${code}】\n\nこの番号をご家族にお伝えください。ご家族がこのアカウントを友だち追加し、この番号を送信すると連携が完了し、大事な通知が届くようになります。`,
+      });
+    }
+
+    if (trimmedMessage === '介護者登録') {
+      const code = generateLinkCode(userId, 'caregiver');
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `介護者の方と連携するための番号です（10分間有効）。\n\n【${code}】\n\nこの番号を介護者の方にお伝えください。その方がこのアカウントを友だち追加し、この番号を送信すると連携が完了し、大事な通知が届くようになります。`,
       });
     }
 
@@ -336,9 +347,9 @@ async function handleEvent(event, lineClient) {
       await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, escalationMsg);
       console.log(`[ESCALATE] userId: ${userId} の相談を薬剤師に通知しました`);
 
-      const caregivers = getCaregiversForPatient(userId);
-      if (caregivers.length > 0) {
-        await lineClient.multicast(caregivers, {
+      const linkedPeople = getAllLinkedPeople(userId);
+      if (linkedPeople.length > 0) {
+        await lineClient.multicast(linkedPeople, {
           type: 'text',
           text: '🔔 ご家族の相談について、担当薬剤師が確認しております。必要に応じてご連絡いたしますので、少々お待ちください。',
         });
