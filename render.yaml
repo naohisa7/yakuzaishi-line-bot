@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: yakuzaishi-line-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: LINE_CHANNEL_ACCESS_TOKEN
+        sync: false
+      - key: LINE_CHANNEL_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: PHARMACIST_LINE_USER_ID
+        sync: false
