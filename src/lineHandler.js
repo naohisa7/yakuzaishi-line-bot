@@ -4,11 +4,31 @@ const { isAuthorized, authorize, getAuthorizedUsers } = require('./authManager')
 const { markAwaitingFeedback, isAwaitingFeedback, clearAwaitingFeedback } = require('./feedbackManager');
 const BROADCAST_TEMPLATES = require('./broadcastTemplates');
 const { generateLinkCode, resolveLinkCode, linkPerson, getAllLinkedPeople } = require('./caregiverManager');
+const { markPendingConsent, isPendingConsent, clearPendingConsent } = require('./consentManager');
+const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
 const PHARMACIST_PHONE = process.env.PHARMACIST_PHONE || '（電話番号未設定）';
 const PHARMACIST_PHONE_URI = PHARMACIST_PHONE.replace(/[^0-9+]/g, '');
 const PATIENT_PASSCODE = process.env.PATIENT_PASSCODE;
+
+/**
+ * プライバシーポリシーへの同意確認ボタン
+ */
+function buildConsentPrompt() {
+  return {
+    type: 'template',
+    altText: '上記の内容にご同意いただける場合は「同意する」を選んでください',
+    template: {
+      type: 'buttons',
+      text: '上記の内容にご同意いただけますか？',
+      actions: [
+        { type: 'message', label: '同意する', text: '同意する' },
+        { type: 'message', label: '同意しない', text: '同意しない' },
+      ],
+    },
+  };
+}
 
 /**
  * 薬剤師への発信ボタン付きメッセージ
@@ -235,12 +255,36 @@ async function handleEvent(event, lineClient) {
 
   // 0. 認証チェック（かかりつけ患者さん以外は利用不可）
   if (PATIENT_PASSCODE && !isAuthorized(userId)) {
+    // 同意待ちの場合の応答
+    if (isPendingConsent(userId)) {
+      const trimmedConsent = !isImage ? userMessage.trim() : '';
+
+      if (trimmedConsent === '同意する') {
+        clearPendingConsent(userId);
+        authorize(userId);
+        return lineClient.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '認証されました😊\nお薬について何でもご相談ください。',
+        });
+      }
+
+      if (trimmedConsent === '同意しない') {
+        clearPendingConsent(userId);
+        return lineClient.replyMessage(event.replyToken, {
+          type: 'text',
+          text: `同意いただけない場合、本サービスはご利用いただけません。\nご不明点があれば担当薬剤師までご連絡ください：${PHARMACIST_PHONE}`,
+        });
+      }
+
+      return lineClient.replyMessage(event.replyToken, buildConsentPrompt());
+    }
+
     if (!isImage && userMessage.trim() === PATIENT_PASSCODE) {
-      authorize(userId);
-      return lineClient.replyMessage(event.replyToken, {
-        type: 'text',
-        text: '認証されました😊\nお薬について何でもご相談ください。',
-      });
+      markPendingConsent(userId);
+      return lineClient.replyMessage(event.replyToken, [
+        { type: 'text', text: PRIVACY_POLICY_TEXT },
+        buildConsentPrompt(),
+      ]);
     }
 
     return lineClient.replyMessage(event.replyToken, {
