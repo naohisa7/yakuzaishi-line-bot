@@ -1,8 +1,10 @@
 const { askClaude } = require('./claudeHandler');
 const { addMessage, getHistory, clearHistory } = require('./conversationManager');
+const { isAuthorized, authorize } = require('./authManager');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
 const PHARMACIST_PHONE = process.env.PHARMACIST_PHONE || '（電話番号未設定）';
+const PATIENT_PASSCODE = process.env.PATIENT_PASSCODE;
 
 /**
  * 特殊コマンドの処理
@@ -68,6 +70,22 @@ async function handleEvent(event, lineClient) {
 
   const userId = event.source.userId;
   const userMessage = event.message.text;
+
+  // 0. 認証チェック（かかりつけ患者さん以外は利用不可）
+  if (PATIENT_PASSCODE && !isAuthorized(userId)) {
+    if (userMessage.trim() === PATIENT_PASSCODE) {
+      authorize(userId);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '認証されました😊\nお薬について何でもご相談ください。',
+      });
+    }
+
+    return lineClient.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'このアカウントはかかりつけ患者さま専用のご相談窓口です。\n担当薬剤師からお伝えした認証コードを送信してください。',
+    });
+  }
 
   // 1. 特殊コマンドチェック
   const commandReply = handleSpecialCommands(userMessage, userId);
