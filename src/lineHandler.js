@@ -2,6 +2,7 @@ const { askClaude } = require('./claudeHandler');
 const { addMessage, getHistory, clearHistory } = require('./conversationManager');
 const { isAuthorized, authorize, getAuthorizedUsers } = require('./authManager');
 const { markAwaitingFeedback, isAwaitingFeedback, clearAwaitingFeedback } = require('./feedbackManager');
+const BROADCAST_TEMPLATES = require('./broadcastTemplates');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
 const PHARMACIST_PHONE = process.env.PHARMACIST_PHONE || '（電話番号未設定）';
@@ -61,6 +62,34 @@ async function notifyFeedback(lineClient, userId, feedbackText) {
 💬 いただいた内容：
 ${feedbackText}`,
   });
+}
+
+/**
+ * 一斉送信の定型文選択メニュー
+ */
+function buildBroadcastTemplateMenu() {
+  return {
+    type: 'text',
+    text: '送信する定型文を選んでください👇\n（自由文を送りたい場合は「一斉送信：本文」の形式で送信してください）',
+    quickReply: {
+      items: BROADCAST_TEMPLATES.map((tpl) => ({
+        type: 'action',
+        action: { type: 'message', label: tpl.label, text: tpl.label },
+      })),
+    },
+  };
+}
+
+/**
+ * 認証済み患者さん（薬剤師自身を除く）へ一斉送信
+ */
+async function broadcastToPatients(lineClient, text) {
+  const recipients = getAuthorizedUsers().filter((id) => id !== PHARMACIST_LINE_USER_ID);
+  if (recipients.length === 0) {
+    return { sent: false, count: 0 };
+  }
+  await lineClient.multicast(recipients, { type: 'text', text });
+  return { sent: true, count: recipients.length };
 }
 
 /**
@@ -148,22 +177,34 @@ async function handleEvent(event, lineClient) {
 
   // -1. 薬剤師からの一斉送信コマンド（フォローアップ等）
   if (!isImage && PHARMACIST_LINE_USER_ID && userId === PHARMACIST_LINE_USER_ID) {
-    const broadcastMatch = userMessage.match(/^一斉送信[:：]\s*([\s\S]+)$/);
-    if (broadcastMatch) {
-      const broadcastText = broadcastMatch[1].trim();
-      const recipients = getAuthorizedUsers().filter((id) => id !== PHARMACIST_LINE_USER_ID);
+    const trimmedAdminMessage = userMessage.trim();
 
-      if (recipients.length === 0) {
-        return lineClient.replyMessage(event.replyToken, {
-          type: 'text',
-          text: '認証済みの患者さんがまだいないため、送信できませんでした。',
-        });
-      }
+    // 「一斉送信」だけを送った場合は定型文の選択メニューを表示
+    if (trimmedAdminMessage === '一斉送信') {
+      return lineClient.replyMessage(event.replyToken, buildBroadcastTemplateMenu());
+    }
 
-      await lineClient.multicast(recipients, { type: 'text', text: broadcastText });
+    // メニューから定型文ラベルが選択された場合
+    const matchedTemplate = BROADCAST_TEMPLATES.find((tpl) => tpl.label === trimmedAdminMessage);
+    if (matchedTemplate) {
+      const result = await broadcastToPatients(lineClient, matchedTemplate.text);
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
-        text: `${recipients.length}名の患者さんに一斉送信しました。`,
+        text: result.sent
+          ? `${result.count}名の患者さんに送信しました。`
+          : '認証済みの患者さんがまだいないため、送信できませんでした。',
+      });
+    }
+
+    // 「一斉送信：本文」の形式で自由文を送信
+    const broadcastMatch = userMessage.match(/^一斉送信[:：]\s*([\s\S]+)$/);
+    if (broadcastMatch) {
+      const result = await broadcastToPatients(lineClient, broadcastMatch[1].trim());
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: result.sent
+          ? `${result.count}名の患者さんに一斉送信しました。`
+          : '認証済みの患者さんがまだいないため、送信できませんでした。',
       });
     }
   }
