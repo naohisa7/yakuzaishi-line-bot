@@ -13,4 +13,8 @@ function authorize(userId) {
   authorizedUsers.add(userId);
 }
 
-module.exports = { isAuthorized, authorize };
+function getAuthorizedUsers() {
+  return Array.from(authorizedUsers);
+}
+
+module.exports = { isAuthorized, authorize, getAuthorizedUsers };

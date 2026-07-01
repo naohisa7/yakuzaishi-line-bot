@@ -1,6 +1,6 @@
 const { askClaude } = require('./claudeHandler');
 const { addMessage, getHistory, clearHistory } = require('./conversationManager');
-const { isAuthorized, authorize } = require('./authManager');
+const { isAuthorized, authorize, getAuthorizedUsers } = require('./authManager');
 const { markAwaitingFeedback, isAwaitingFeedback, clearAwaitingFeedback } = require('./feedbackManager');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
@@ -145,6 +145,28 @@ async function handleEvent(event, lineClient) {
   const userId = event.source.userId;
   const isImage = event.message.type === 'image';
   const userMessage = isImage ? null : event.message.text;
+
+  // -1. 薬剤師からの一斉送信コマンド（フォローアップ等）
+  if (!isImage && PHARMACIST_LINE_USER_ID && userId === PHARMACIST_LINE_USER_ID) {
+    const broadcastMatch = userMessage.match(/^一斉送信[:：]\s*([\s\S]+)$/);
+    if (broadcastMatch) {
+      const broadcastText = broadcastMatch[1].trim();
+      const recipients = getAuthorizedUsers().filter((id) => id !== PHARMACIST_LINE_USER_ID);
+
+      if (recipients.length === 0) {
+        return lineClient.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '認証済みの患者さんがまだいないため、送信できませんでした。',
+        });
+      }
+
+      await lineClient.multicast(recipients, { type: 'text', text: broadcastText });
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `${recipients.length}名の患者さんに一斉送信しました。`,
+      });
+    }
+  }
 
   // 0. 認証チェック（かかりつけ患者さん以外は利用不可）
   if (PATIENT_PASSCODE && !isAuthorized(userId)) {
