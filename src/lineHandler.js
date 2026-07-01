@@ -99,6 +99,18 @@ function handleSpecialCommands(text, userId) {
 }
 
 /**
+ * LINEから画像コンテンツを取得しBase64に変換
+ */
+async function fetchImageBase64(lineClient, messageId) {
+  const stream = await lineClient.getMessageContent(messageId);
+  const chunks = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks).toString('base64');
+}
+
+/**
  * 薬剤師への通知メッセージを生成
  */
 async function buildEscalationMessage(lineClient, userId, userMessage) {
@@ -125,17 +137,18 @@ ${userMessage}
  * メインのイベントハンドラ
  */
 async function handleEvent(event, lineClient) {
-  // テキストメッセージ以外は無視
-  if (event.type !== 'message' || event.message.type !== 'text') {
+  // テキスト・画像メッセージ以外は無視
+  if (event.type !== 'message' || (event.message.type !== 'text' && event.message.type !== 'image')) {
     return;
   }
 
   const userId = event.source.userId;
-  const userMessage = event.message.text;
+  const isImage = event.message.type === 'image';
+  const userMessage = isImage ? null : event.message.text;
 
   // 0. 認証チェック（かかりつけ患者さん以外は利用不可）
   if (PATIENT_PASSCODE && !isAuthorized(userId)) {
-    if (userMessage.trim() === PATIENT_PASSCODE) {
+    if (!isImage && userMessage.trim() === PATIENT_PASSCODE) {
       authorize(userId);
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
@@ -149,47 +162,60 @@ async function handleEvent(event, lineClient) {
     });
   }
 
-  // 1. 特殊コマンドチェック
-  const commandReply = handleSpecialCommands(userMessage, userId);
-  if (commandReply) {
-    return lineClient.replyMessage(event.replyToken, commandReply);
-  }
+  // 画像以外（テキスト）の場合のみ、特殊コマンド・フィードバックボタンを処理
+  if (!isImage) {
+    // 1. 特殊コマンドチェック
+    const commandReply = handleSpecialCommands(userMessage, userId);
+    if (commandReply) {
+      return lineClient.replyMessage(event.replyToken, commandReply);
+    }
 
-  const trimmedMessage = userMessage.trim();
+    const trimmedMessage = userMessage.trim();
 
-  // 2. 「解決した／しなかった」ボタンの処理
-  if (trimmedMessage === '解決した') {
-    return lineClient.replyMessage(event.replyToken, {
-      type: 'text',
-      text: 'よかったです😊 また何かあればいつでもご相談ください。',
-    });
-  }
-
-  if (trimmedMessage === '解決しなかった') {
-    markAwaitingFeedback(userId);
-    return lineClient.replyMessage(event.replyToken, [
-      {
+    // 2. 「解決した／しなかった」ボタンの処理
+    if (trimmedMessage === '解決した') {
+      return lineClient.replyMessage(event.replyToken, {
         type: 'text',
-        text: '申し訳ありません。今後の改善のため、どのような点が分かりにくかった・不十分だったか教えていただけますか？',
-      },
-      buildCallButtonMessage(),
-    ]);
-  }
+        text: 'よかったです😊 また何かあればいつでもご相談ください。',
+      });
+    }
 
-  // 3. 「解決しなかった」の詳細フィードバック待ちの場合、このメッセージをフィードバックとして扱う
-  if (isAwaitingFeedback(userId)) {
-    clearAwaitingFeedback(userId);
-    await notifyFeedback(lineClient, userId, userMessage);
-    console.log(`[FEEDBACK] userId: ${userId} からのフィードバックを薬剤師に通知しました`);
-    return lineClient.replyMessage(event.replyToken, {
-      type: 'text',
-      text: '貴重なご意見をありがとうございました。今後の改善に活かします🙏',
-    });
+    if (trimmedMessage === '解決しなかった') {
+      markAwaitingFeedback(userId);
+      return lineClient.replyMessage(event.replyToken, [
+        {
+          type: 'text',
+          text: '申し訳ありません。今後の改善のため、どのような点が分かりにくかった・不十分だったか教えていただけますか？',
+        },
+        buildCallButtonMessage(),
+      ]);
+    }
+
+    // 3. 「解決しなかった」の詳細フィードバック待ちの場合、このメッセージをフィードバックとして扱う
+    if (isAwaitingFeedback(userId)) {
+      clearAwaitingFeedback(userId);
+      await notifyFeedback(lineClient, userId, userMessage);
+      console.log(`[FEEDBACK] userId: ${userId} からのフィードバックを薬剤師に通知しました`);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '貴重なご意見をありがとうございました。今後の改善に活かします🙏',
+      });
+    }
   }
 
   try {
-    // 4. 会話履歴にユーザーメッセージを追加
-    addMessage(userId, 'user', userMessage);
+    // 4. 会話履歴にユーザーメッセージ（または画像）を追加
+    let userContent;
+    if (isImage) {
+      const imageBase64 = await fetchImageBase64(lineClient, event.message.id);
+      userContent = [
+        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 } },
+        { type: 'text', text: 'この薬、または お薬手帳の写真です。薬剤名や用法用量を確認して教えてください。' },
+      ];
+    } else {
+      userContent = userMessage;
+    }
+    addMessage(userId, 'user', userContent);
     const history = getHistory(userId);
 
     // 5. Claudeに問い合わせ
@@ -210,7 +236,11 @@ async function handleEvent(event, lineClient) {
 
     // 8. エスカレーションが必要な場合、薬剤師に通知
     if (needsEscalation && PHARMACIST_LINE_USER_ID) {
-      const escalationMsg = await buildEscalationMessage(lineClient, userId, userMessage);
+      const escalationMsg = await buildEscalationMessage(
+        lineClient,
+        userId,
+        isImage ? '（お薬・お薬手帳の写真が送信されました）' : userMessage
+      );
       await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, escalationMsg);
       console.log(`[ESCALATE] userId: ${userId} の相談を薬剤師に通知しました`);
     }
