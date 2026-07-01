@@ -50,6 +50,7 @@ app.post(
   '/webhook',
   line.middleware(lineConfig),
   async (req, res) => {
+    console.log(`[WEBHOOK受信] events=${req.body.events.length}件`);
     try {
       const events = req.body.events;
       await Promise.all(events.map((event) => handleEvent(event, lineClient)));
