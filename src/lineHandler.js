@@ -1,6 +1,7 @@
 const { askClaude } = require('./claudeHandler');
 const { addMessage, getHistory, clearHistory } = require('./conversationManager');
 const { isAuthorized, authorize } = require('./authManager');
+const { markAwaitingFeedback, isAwaitingFeedback, clearAwaitingFeedback } = require('./feedbackManager');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
 const PHARMACIST_PHONE = process.env.PHARMACIST_PHONE || '（電話番号未設定）';
@@ -22,6 +23,44 @@ function buildCallButtonMessage() {
       ],
     },
   };
+}
+
+/**
+ * メッセージに「解決した／しなかった」のクイックリプライを付与
+ */
+function withSolvedQuickReply(message) {
+  return {
+    ...message,
+    quickReply: {
+      items: [
+        { type: 'action', action: { type: 'message', label: '✅ 解決した', text: '解決した' } },
+        { type: 'action', action: { type: 'message', label: '❌ 解決しなかった', text: '解決しなかった' } },
+      ],
+    },
+  };
+}
+
+/**
+ * 「解決しなかった」の詳細フィードバックを薬剤師に通知
+ */
+async function notifyFeedback(lineClient, userId, feedbackText) {
+  if (!PHARMACIST_LINE_USER_ID) return;
+
+  let patientName = '患者さん';
+  try {
+    const profile = await lineClient.getProfile(userId);
+    patientName = profile.displayName;
+  } catch (_) {}
+
+  await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, {
+    type: 'text',
+    text: `📝【フィードバック】チャットボットで解決できなかったとの回答
+━━━━━━━━━━━━━━
+👤 ${patientName}
+━━━━━━━━━━━━━━
+💬 いただいた内容：
+${feedbackText}`,
+  });
 }
 
 /**
@@ -116,25 +155,60 @@ async function handleEvent(event, lineClient) {
     return lineClient.replyMessage(event.replyToken, commandReply);
   }
 
+  const trimmedMessage = userMessage.trim();
+
+  // 2. 「解決した／しなかった」ボタンの処理
+  if (trimmedMessage === '解決した') {
+    return lineClient.replyMessage(event.replyToken, {
+      type: 'text',
+      text: 'よかったです😊 また何かあればいつでもご相談ください。',
+    });
+  }
+
+  if (trimmedMessage === '解決しなかった') {
+    markAwaitingFeedback(userId);
+    return lineClient.replyMessage(event.replyToken, [
+      {
+        type: 'text',
+        text: '申し訳ありません。今後の改善のため、どのような点が分かりにくかった・不十分だったか教えていただけますか？',
+      },
+      buildCallButtonMessage(),
+    ]);
+  }
+
+  // 3. 「解決しなかった」の詳細フィードバック待ちの場合、このメッセージをフィードバックとして扱う
+  if (isAwaitingFeedback(userId)) {
+    clearAwaitingFeedback(userId);
+    await notifyFeedback(lineClient, userId, userMessage);
+    console.log(`[FEEDBACK] userId: ${userId} からのフィードバックを薬剤師に通知しました`);
+    return lineClient.replyMessage(event.replyToken, {
+      type: 'text',
+      text: '貴重なご意見をありがとうございました。今後の改善に活かします🙏',
+    });
+  }
+
   try {
-    // 2. 会話履歴にユーザーメッセージを追加
+    // 4. 会話履歴にユーザーメッセージを追加
     addMessage(userId, 'user', userMessage);
     const history = getHistory(userId);
 
-    // 3. Claudeに問い合わせ
+    // 5. Claudeに問い合わせ
     const { message, needsEscalation } = await askClaude(history);
 
-    // 4. 会話履歴にアシスタントの返信を追加
+    // 6. 会話履歴にアシスタントの返信を追加
     addMessage(userId, 'assistant', message);
 
-    // 5. 患者さんへ返信（対応困難なケースは電話ボタンも添える）
-    const replyMessages = [{ type: 'text', text: message }];
+    // 7. 患者さんへ返信
+    // 対応困難なケースは電話ボタンを、それ以外は解決確認のクイックリプライを添える
+    let replyMessages;
     if (needsEscalation) {
-      replyMessages.push(buildCallButtonMessage());
+      replyMessages = [{ type: 'text', text: message }, buildCallButtonMessage()];
+    } else {
+      replyMessages = [withSolvedQuickReply({ type: 'text', text: message })];
     }
     await lineClient.replyMessage(event.replyToken, replyMessages);
 
-    // 6. エスカレーションが必要な場合、薬剤師に通知
+    // 8. エスカレーションが必要な場合、薬剤師に通知
     if (needsEscalation && PHARMACIST_LINE_USER_ID) {
       const escalationMsg = await buildEscalationMessage(lineClient, userId, userMessage);
       await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, escalationMsg);
