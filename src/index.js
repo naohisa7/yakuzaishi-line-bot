@@ -58,7 +58,10 @@ const lineClient = new line.Client(lineConfig);
 const mailer =
   process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD
     ? nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        family: 4, // RenderがIPv6発信に対応していないため強制的にIPv4接続にする
         auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_APP_PASSWORD },
       })
     : null;
