@@ -67,7 +67,6 @@ const mailer =
       })
     : null;
 const CONTACT_EMAIL_TO = process.env.CONTACT_EMAIL_TO || process.env.EMAIL_USER;
-console.log(`[MAIL設定] mailer=${mailer ? '設定あり' : '未設定'} 送信先=${CONTACT_EMAIL_TO || 'なし'}`);
 
 // ────────────────────────────────────
 // Express アプリ設定
@@ -336,16 +335,13 @@ ${message}`,
     }
 
     if (mailer && CONTACT_EMAIL_TO) {
-      const info = await mailer.sendMail({
+      await mailer.sendMail({
         from: process.env.EMAIL_USER,
         to: CONTACT_EMAIL_TO,
         replyTo: email,
         subject: `【仕事のご依頼】${name}様より`,
         text: `お名前・会社名：${name}\n連絡先：${email}\n\n依頼内容：\n${message}`,
       });
-      console.log(`[MAIL送信] messageId=${info.messageId} response=${info.response}`);
-    } else {
-      console.log('[MAIL送信] スキップ（mailer未設定）');
     }
 
     res.json({ ok: true });
