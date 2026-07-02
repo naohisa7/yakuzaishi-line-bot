@@ -262,7 +262,12 @@ app.get('/profile', (req, res) => {
 });
 
 app.get('/api/profile', async (req, res) => {
-  res.json({ text: await getProfile() });
+  try {
+    res.json({ text: await getProfile() });
+  } catch (err) {
+    console.error('プロフィール取得エラー:', err);
+    res.status(500).json({ error: 'プロフィールを取得できませんでした。' });
+  }
 });
 
 app.get('/articles', (req, res) => {
@@ -274,16 +279,26 @@ app.get('/articles/:id', (req, res) => {
 });
 
 app.get('/api/articles', async (req, res) => {
-  const articles = (await getArticles()).map(({ id, title, createdAt }) => ({ id, title, createdAt }));
-  res.json({ articles });
+  try {
+    const articles = (await getArticles()).map(({ id, title, createdAt }) => ({ id, title, createdAt }));
+    res.json({ articles });
+  } catch (err) {
+    console.error('記事一覧取得エラー:', err);
+    res.status(500).json({ error: '記事一覧を取得できませんでした。' });
+  }
 });
 
 app.get('/api/articles/:id', async (req, res) => {
-  const article = await getArticle(req.params.id);
-  if (!article) {
-    return res.status(404).json({ error: '記事が見つかりません。' });
+  try {
+    const article = await getArticle(req.params.id);
+    if (!article) {
+      return res.status(404).json({ error: '記事が見つかりません。' });
+    }
+    res.json(article);
+  } catch (err) {
+    console.error('記事取得エラー:', err);
+    res.status(500).json({ error: '記事を取得できませんでした。' });
   }
-  res.json(article);
 });
 
 app.get('/contact', (req, res) => {
