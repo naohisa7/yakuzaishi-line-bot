@@ -6,6 +6,7 @@ const BROADCAST_TEMPLATES = require('./broadcastTemplates');
 const { generateLinkCode, resolveLinkCode, linkPerson, getAllLinkedPeople } = require('./caregiverManager');
 const { markPendingConsent, isPendingConsent, clearPendingConsent } = require('./consentManager');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
+const { startReply, getReplyTarget, clearReply } = require('./replyManager');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
 const PHARMACIST_PHONE = process.env.PHARMACIST_PHONE || '（電話番号未設定）';
@@ -172,17 +173,30 @@ async function buildEscalationMessage(lineClient, userId, userMessage) {
     patientName = profile.displayName;
   } catch (_) {}
 
-  return {
-    type: 'text',
-    text: `🔔【要対応】かかりつけ患者さんから相談
+  return [
+    {
+      type: 'text',
+      text: `🔔【要対応】かかりつけ患者さんから相談
 ━━━━━━━━━━━━━━
 👤 ${patientName}
 ━━━━━━━━━━━━━━
 💬 相談内容：
 ${userMessage}
 ━━━━━━━━━━━━━━
-⚠️ チャットボットでは対応が難しい内容です。LINEまたはお電話でご確認ください。`,
-  };
+⚠️ チャットボットでは対応が難しい内容です。`,
+    },
+    {
+      type: 'template',
+      altText: 'この患者さんにチャットで直接返信できます',
+      template: {
+        type: 'buttons',
+        text: '電話の代わりに、チャットで直接返信することもできます',
+        actions: [
+          { type: 'message', label: '💬 チャットで返信する', text: `返信:${userId}` },
+        ],
+      },
+    },
+  ];
 }
 
 /**
@@ -201,6 +215,38 @@ async function handleEvent(event, lineClient) {
   // -1. 薬剤師からの一斉送信コマンド（フォローアップ等）
   if (!isImage && PHARMACIST_LINE_USER_ID && userId === PHARMACIST_LINE_USER_ID) {
     const trimmedAdminMessage = userMessage.trim();
+
+    // 返信モード中は、次のメッセージをそのまま患者さんに転送する（最優先で処理）
+    const replyTarget = getReplyTarget(userId);
+    if (replyTarget) {
+      if (trimmedAdminMessage === 'キャンセル') {
+        clearReply(userId);
+        return lineClient.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '返信をキャンセルしました。',
+        });
+      }
+
+      await lineClient.pushMessage(replyTarget, {
+        type: 'text',
+        text: `💊 担当薬剤師からの返信\n━━━━━━━━━━━━━━\n${userMessage}`,
+      });
+      clearReply(userId);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '患者さんに送信しました。',
+      });
+    }
+
+    // エスカレーション通知のボタンから「返信:<患者のuserId>」が送られてきた場合
+    const replyStartMatch = trimmedAdminMessage.match(/^返信:(U[0-9a-f]{32})$/);
+    if (replyStartMatch) {
+      startReply(userId, replyStartMatch[1]);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '返信モードに入りました。患者さんに送る内容を入力してください（中止する場合は「キャンセル」）。',
+      });
+    }
 
     // 「一斉送信」だけを送った場合は定型文の選択メニューを表示
     if (trimmedAdminMessage === '一斉送信') {
