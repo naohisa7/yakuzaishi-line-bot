@@ -76,7 +76,12 @@ function buildReplyButtonMessage(patientId) {
       type: 'buttons',
       text: '電話の代わりに、チャットで直接返信することもできます',
       actions: [
-        { type: 'message', label: '💬 チャットで返信する', text: `返信:${patientId}` },
+        {
+          type: 'postback',
+          label: '💬 チャットで返信する',
+          data: `reply:${patientId}`,
+          displayText: '💬 チャットで返信する',
+        },
       ],
     },
   };
@@ -179,7 +184,12 @@ async function buildPatientListMessage(lineClient) {
     quickReply: {
       items: targetIds.map((id, i) => ({
         type: 'action',
-        action: { type: 'message', label: names[i].slice(0, 20), text: `返信:${id}` },
+        action: {
+          type: 'postback',
+          label: names[i].slice(0, 20),
+          data: `reply:${id}`,
+          displayText: `${names[i]}さんに返信`,
+        },
       })),
     },
   };
@@ -286,6 +296,19 @@ ${userMessage}
  * メインのイベントハンドラ
  */
 async function handleEvent(event, lineClient) {
+  // 薬剤師がボタン（postback）からチャット返信を開始する場合
+  if (event.type === 'postback' && PHARMACIST_LINE_USER_ID && event.source.userId === PHARMACIST_LINE_USER_ID) {
+    const match = event.postback.data.match(/^reply:(U[0-9a-f]{32})$/);
+    if (match) {
+      startReply(event.source.userId, match[1]);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '返信モードに入りました。患者さんに送る内容を入力してください（中止する場合は「キャンセル」）。',
+      });
+    }
+    return;
+  }
+
   // テキスト・画像メッセージ以外は無視
   if (event.type !== 'message' || (event.message.type !== 'text' && event.message.type !== 'image')) {
     return;
@@ -318,16 +341,6 @@ async function handleEvent(event, lineClient) {
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
         text: '患者さんに送信しました。',
-      });
-    }
-
-    // エスカレーション通知のボタンから「返信:<患者のuserId>」が送られてきた場合
-    const replyStartMatch = trimmedAdminMessage.match(/^返信:(U[0-9a-f]{32})$/);
-    if (replyStartMatch) {
-      startReply(userId, replyStartMatch[1]);
-      return lineClient.replyMessage(event.replyToken, {
-        type: 'text',
-        text: '返信モードに入りました。患者さんに送る内容を入力してください（中止する場合は「キャンセル」）。',
       });
     }
 
