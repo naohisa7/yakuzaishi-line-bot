@@ -336,13 +336,13 @@ async function handleEvent(event, lineClient) {
       return lineClient.replyMessage(event.replyToken, await buildPatientListMessage(lineClient));
     }
 
-    // 「フィードバック一覧」で「解決しなかった」際の改善点の記録を閲覧
-    if (trimmedAdminMessage === 'フィードバック一覧') {
+    // 「改善要望一覧」で「解決しなかった」際の改善点の記録を閲覧
+    if (trimmedAdminMessage === '改善要望一覧') {
       const entries = await getRecentFeedback(10);
       if (entries.length === 0) {
         return lineClient.replyMessage(event.replyToken, {
           type: 'text',
-          text: 'まだ記録されたフィードバックはありません。',
+          text: 'まだ記録された改善要望はありません。',
         });
       }
 
@@ -355,7 +355,7 @@ async function handleEvent(event, lineClient) {
 
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
-        text: `📋 直近のフィードバック（新しい順・最大10件）\n━━━━━━━━━━━━━━\n${listText}`,
+        text: `📋 直近の改善要望（新しい順・最大10件）\n━━━━━━━━━━━━━━\n${listText}`,
       });
     }
 
