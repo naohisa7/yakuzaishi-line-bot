@@ -61,10 +61,17 @@ body {
   cursor: pointer;
   text-align: center;
   text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(47, 158, 143, 0.35);
 }
 
 .btn:active {
   background: var(--brand-dark);
+  transform: translateY(0);
 }
 
 .btn-secondary {
@@ -192,4 +199,130 @@ label {
   color: var(--muted);
   font-size: 12px;
   padding: 16px;
+}
+
+/* ────────────────────────────────────
+   トップページ（ランディング）専用
+   ──────────────────────────────────── */
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: 64px 20px 90px;
+  text-align: center;
+  color: #fff;
+  background: linear-gradient(120deg, #2F9E8F, #1F6F65, #3AB8A6, #1F6F65);
+  background-size: 300% 300%;
+  animation: gradientShift 12s ease infinite;
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.hero-icon {
+  font-size: 56px;
+  display: inline-block;
+  animation: floatIcon 3.5s ease-in-out infinite;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
+}
+
+@keyframes floatIcon {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-12px) rotate(3deg); }
+}
+
+.hero h1 {
+  margin: 16px 0 10px;
+  font-size: 30px;
+  letter-spacing: 0.02em;
+}
+
+.hero p {
+  margin: 0 0 32px;
+  font-size: 15px;
+  line-height: 1.8;
+  opacity: 0.95;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: revealUp 0.8s ease forwards;
+}
+
+.reveal.delay-1 { animation-delay: 0.15s; }
+.reveal.delay-2 { animation-delay: 0.3s; }
+
+@keyframes revealUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.btn-hero {
+  width: auto;
+  display: inline-block;
+  padding: 16px 36px;
+  background: #fff;
+  color: var(--brand-dark);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  animation: revealUp 0.8s ease forwards, pulseGlow 2.4s ease-in-out 1.2s infinite;
+}
+
+.btn-hero:hover {
+  background: #fff;
+  transform: translateY(-3px) scale(1.03);
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18); }
+  50% { box-shadow: 0 10px 30px rgba(255, 255, 255, 0.5); }
+}
+
+.hero-wave {
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  line-height: 0;
+}
+
+.hero-wave svg {
+  width: 100%;
+  height: 60px;
+  display: block;
+}
+
+.card-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.card.highlight {
+  background: #EFF9F6;
+  border: 1px solid #CFEAE3;
+}
+
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.reveal-on-scroll.in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.1);
 }

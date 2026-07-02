@@ -7,29 +7,41 @@
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<div class="header">
-  <h1>💊 かかりつけ薬剤師</h1>
-  <p>お薬のご相談に、AIと薬剤師がいつでもお応えします</p>
+
+<div class="hero">
+  <div class="hero-icon">💊</div>
+  <h1 class="reveal">かかりつけ薬剤師</h1>
+  <p class="reveal delay-1">お薬のご相談に、AIと薬剤師が<br>いつでもお応えします</p>
+  <a class="btn btn-hero reveal delay-2" href="/patient">かかりつけ患者様はこちら</a>
+
+  <div class="hero-wave">
+    <svg viewBox="0 0 500 60" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,30 C150,70 350,-10 500,30 L500,60 L0,60 Z" fill="#F4F6F5"></path>
+    </svg>
+  </div>
 </div>
 
 <div class="container">
-  <div class="card">
+  <div class="card reveal-on-scroll">
+    <div class="card-icon">🕒</div>
+    <h3>24時間いつでも相談</h3>
     <p>当薬局では、LINEやこちらのホームページから、お薬に関するご相談を24時間受け付けています。</p>
+  </div>
+
+  <div class="card reveal-on-scroll">
+    <div class="card-icon">🤖</div>
+    <h3>AIがすぐに回答</h3>
     <p>AIが自動でお答えし、対応が難しいご相談は担当の薬剤師が直接確認いたします。</p>
   </div>
 
-  <div class="card">
-    <h3>かかりつけ患者さまへ</h3>
-    <p>認証コードをお持ちの方は、こちらから相談を始められます。</p>
-    <a class="btn" href="/patient">かかりつけ患者様はこちら</a>
-  </div>
-
-  <div class="card">
+  <div class="card highlight reveal-on-scroll">
     <h3>はじめてご利用の方へ</h3>
     <p>ご利用には、担当薬剤師が発行する認証コードが必要です。窓口にてお気軽にお尋ねください。</p>
   </div>
 </div>
 
 <div class="footer-note">© かかりつけ薬剤師</div>
+
+<script src="/js/landing.js"></script>
 </body>
 </html>
