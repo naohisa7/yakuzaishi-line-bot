@@ -148,6 +148,40 @@ function buildBroadcastTemplateMenu() {
 }
 
 /**
+ * 患者さん一覧をクイックリプライで表示（選択すると返信モードに入る）
+ */
+async function buildPatientListMessage(lineClient) {
+  const patientIds = (await getAuthorizedUsers()).filter((id) => id !== PHARMACIST_LINE_USER_ID);
+
+  if (patientIds.length === 0) {
+    return { type: 'text', text: '認証済みの患者さんがまだいません。' };
+  }
+
+  const targetIds = patientIds.slice(0, 13);
+  const names = await Promise.all(
+    targetIds.map(async (id) => {
+      try {
+        const profile = await lineClient.getProfile(id);
+        return profile.displayName;
+      } catch (_) {
+        return '（表示名不明）';
+      }
+    })
+  );
+
+  return {
+    type: 'text',
+    text: `チャットを送る患者さんを選んでください👇${patientIds.length > 13 ? `\n（先頭13名のみ表示、全${patientIds.length}名）` : ''}`,
+    quickReply: {
+      items: targetIds.map((id, i) => ({
+        type: 'action',
+        action: { type: 'message', label: names[i].slice(0, 20), text: `返信:${id}` },
+      })),
+    },
+  };
+}
+
+/**
  * 認証済み患者さん（薬剤師自身を除く）へ一斉送信
  */
 async function broadcastToPatients(lineClient, text) {
@@ -281,6 +315,11 @@ async function handleEvent(event, lineClient) {
         type: 'text',
         text: '返信モードに入りました。患者さんに送る内容を入力してください（中止する場合は「キャンセル」）。',
       });
+    }
+
+    // 「患者一覧」で特定の患者さんを選んでチャットを開始
+    if (trimmedAdminMessage === '患者一覧') {
+      return lineClient.replyMessage(event.replyToken, await buildPatientListMessage(lineClient));
     }
 
     // 「一斉送信」だけを送った場合は定型文の選択メニューを表示
