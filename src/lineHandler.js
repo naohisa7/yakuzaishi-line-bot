@@ -88,16 +88,24 @@ function buildReplyButtonMessage(patientId) {
 }
 
 /**
+ * 患者さんの表示名を取得（失敗時は「患者さん」）
+ */
+async function getPatientName(lineClient, userId) {
+  try {
+    const profile = await lineClient.getProfile(userId);
+    return profile.displayName;
+  } catch (_) {
+    return '患者さん';
+  }
+}
+
+/**
  * 「解決しなかった」が押されたことを薬剤師に即座に通知
  */
 async function notifyUnresolved(lineClient, userId) {
   if (!PHARMACIST_LINE_USER_ID) return;
 
-  let patientName = '患者さん';
-  try {
-    const profile = await lineClient.getProfile(userId);
-    patientName = profile.displayName;
-  } catch (_) {}
+  const patientName = await getPatientName(lineClient, userId);
 
   await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
     {
@@ -116,11 +124,7 @@ async function notifyUnresolved(lineClient, userId) {
  * 「解決しなかった」の詳細フィードバックを薬剤師に通知
  */
 async function notifyFeedback(lineClient, userId, feedbackText) {
-  let patientName = '患者さん';
-  try {
-    const profile = await lineClient.getProfile(userId);
-    patientName = profile.displayName;
-  } catch (_) {}
+  const patientName = await getPatientName(lineClient, userId);
 
   await recordFeedback(patientName, feedbackText);
 
@@ -270,11 +274,7 @@ async function fetchImageBase64(lineClient, messageId) {
  * 薬剤師への通知メッセージを生成
  */
 async function buildEscalationMessage(lineClient, userId, userMessage) {
-  let patientName = '患者さん';
-  try {
-    const profile = await lineClient.getProfile(userId);
-    patientName = profile.displayName;
-  } catch (_) {}
+  const patientName = await getPatientName(lineClient, userId);
 
   return [
     {
@@ -300,10 +300,12 @@ async function handleEvent(event, lineClient) {
   if (event.type === 'postback' && PHARMACIST_LINE_USER_ID && event.source.userId === PHARMACIST_LINE_USER_ID) {
     const match = event.postback.data.match(/^reply:(U[0-9a-f]{32})$/);
     if (match) {
-      startReply(event.source.userId, match[1]);
+      const patientId = match[1];
+      startReply(event.source.userId, patientId);
+      const patientName = await getPatientName(lineClient, patientId);
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
-        text: '返信モードに入りました。患者さんに送る内容を入力してください（中止する場合は「キャンセル」）。',
+        text: `🟢【返信モード中：${patientName}さん】\nここから送るメッセージはすべて${patientName}さんに届きます。\n終了するときは「終了」と送信してください。`,
       });
     }
     return;
@@ -322,14 +324,16 @@ async function handleEvent(event, lineClient) {
   if (!isImage && PHARMACIST_LINE_USER_ID && userId === PHARMACIST_LINE_USER_ID) {
     const trimmedAdminMessage = userMessage.trim();
 
-    // 返信モード中は、次のメッセージをそのまま患者さんに転送する（最優先で処理）
+    // 返信モード中は、次のメッセージをそのまま患者さんに転送する（「終了」まで継続・最優先で処理）
     const replyTarget = getReplyTarget(userId);
     if (replyTarget) {
-      if (trimmedAdminMessage === 'キャンセル') {
+      const replyPatientName = await getPatientName(lineClient, replyTarget);
+
+      if (trimmedAdminMessage === '終了' || trimmedAdminMessage === 'キャンセル') {
         clearReply(userId);
         return lineClient.replyMessage(event.replyToken, {
           type: 'text',
-          text: '返信をキャンセルしました。',
+          text: `🔴 ${replyPatientName}さんへの返信モードを終了しました。`,
         });
       }
 
@@ -337,10 +341,9 @@ async function handleEvent(event, lineClient) {
         type: 'text',
         text: `💊 担当薬剤師からの返信\n━━━━━━━━━━━━━━\n${userMessage}`,
       });
-      clearReply(userId);
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
-        text: '患者さんに送信しました。',
+        text: `✅ ${replyPatientName}さんに送信しました。\n🟢 返信モード継続中（終了するときは「終了」と送信）`,
       });
     }
 
