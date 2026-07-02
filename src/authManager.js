@@ -1,20 +1,21 @@
+const redis = require('./redisClient');
+
 /**
- * 認証済み患者を管理するモジュール
- * ※本番環境ではRedisやDBへの移行を推奨（再デプロイ・再起動で認証状態がリセットされます）
+ * 認証済み患者を管理するモジュール（Redisに永続化）
  */
 
-const authorizedUsers = new Set();
+const AUTH_SET_KEY = 'authorized_users';
 
-function isAuthorized(userId) {
-  return authorizedUsers.has(userId);
+async function isAuthorized(userId) {
+  return (await redis.sismember(AUTH_SET_KEY, userId)) === 1;
 }
 
-function authorize(userId) {
-  authorizedUsers.add(userId);
+async function authorize(userId) {
+  await redis.sadd(AUTH_SET_KEY, userId);
 }
 
-function getAuthorizedUsers() {
-  return Array.from(authorizedUsers);
+async function getAuthorizedUsers() {
+  return redis.smembers(AUTH_SET_KEY);
 }
 
 module.exports = { isAuthorized, authorize, getAuthorizedUsers };

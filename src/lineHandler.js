@@ -105,7 +105,7 @@ function buildBroadcastTemplateMenu() {
  * 認証済み患者さん（薬剤師自身を除く）へ一斉送信
  */
 async function broadcastToPatients(lineClient, text) {
-  const recipients = getAuthorizedUsers().filter((id) => id !== PHARMACIST_LINE_USER_ID);
+  const recipients = (await getAuthorizedUsers()).filter((id) => id !== PHARMACIST_LINE_USER_ID);
   if (recipients.length === 0) {
     return { sent: false, count: 0 };
   }
@@ -234,11 +234,11 @@ async function handleEvent(event, lineClient) {
 
   // ご家族・介護者の連携コード確認（未認証でも受け付ける）
   if (!isImage && /^\d{6}$/.test(userMessage.trim())) {
-    const resolved = resolveLinkCode(userMessage.trim());
+    const resolved = await resolveLinkCode(userMessage.trim());
     if (resolved) {
       const { patientId, type } = resolved;
-      linkPerson(patientId, userId, type);
-      authorize(userId);
+      await linkPerson(patientId, userId, type);
+      await authorize(userId);
       const typeLabel = type === 'family' ? 'ご家族' : '介護者';
       try {
         await lineClient.pushMessage(patientId, {
@@ -254,14 +254,15 @@ async function handleEvent(event, lineClient) {
   }
 
   // 0. 認証チェック（かかりつけ患者さん以外は利用不可）
-  if (PATIENT_PASSCODE && !isAuthorized(userId)) {
+  const alreadyAuthorized = await isAuthorized(userId);
+  if (PATIENT_PASSCODE && !alreadyAuthorized) {
     // 同意待ちの場合の応答
     if (isPendingConsent(userId)) {
       const trimmedConsent = !isImage ? userMessage.trim() : '';
 
       if (trimmedConsent === '同意する') {
         clearPendingConsent(userId);
-        authorize(userId);
+        await authorize(userId);
         return lineClient.replyMessage(event.replyToken, {
           type: 'text',
           text: '認証されました😊\nお薬について何でもご相談ください。',
@@ -312,7 +313,7 @@ async function handleEvent(event, lineClient) {
     }
 
     if (trimmedMessage === '家族登録') {
-      const code = generateLinkCode(userId, 'family');
+      const code = await generateLinkCode(userId, 'family');
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
         text: `ご家族の方と連携するための番号です（10分間有効）。\n\n【${code}】\n\nこの番号をご家族にお伝えください。ご家族がこのアカウントを友だち追加し、この番号を送信すると連携が完了し、大事な通知が届くようになります。`,
@@ -320,7 +321,7 @@ async function handleEvent(event, lineClient) {
     }
 
     if (trimmedMessage === '介護者登録') {
-      const code = generateLinkCode(userId, 'caregiver');
+      const code = await generateLinkCode(userId, 'caregiver');
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
         text: `介護者の方と連携するための番号です（10分間有効）。\n\n【${code}】\n\nこの番号を介護者の方にお伝えください。その方がこのアカウントを友だち追加し、この番号を送信すると連携が完了し、大事な通知が届くようになります。`,
@@ -391,7 +392,7 @@ async function handleEvent(event, lineClient) {
       await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, escalationMsg);
       console.log(`[ESCALATE] userId: ${userId} の相談を薬剤師に通知しました`);
 
-      const linkedPeople = getAllLinkedPeople(userId);
+      const linkedPeople = await getAllLinkedPeople(userId);
       if (linkedPeople.length > 0) {
         await lineClient.multicast(linkedPeople, {
           type: 'text',
