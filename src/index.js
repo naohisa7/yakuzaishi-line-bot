@@ -1,5 +1,9 @@
 require('dotenv').config();
 
+// Render環境はIPv6での発信ができないため、DNS解決をIPv4優先にする
+// （設定しないとGmail SMTP等への接続がENETUNREACHで失敗する）
+require('dns').setDefaultResultOrder('ipv4first');
+
 const path = require('path');
 const http = require('http');
 const express = require('express');
