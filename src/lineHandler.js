@@ -3,6 +3,7 @@ const { askClaude } = require('./claudeHandler');
 const { addMessage, getHistory, clearHistory } = require('./conversationManager');
 const { isAuthorized, authorize, getAuthorizedUsers } = require('./authManager');
 const { markAwaitingFeedback, isAwaitingFeedback, clearAwaitingFeedback } = require('./feedbackManager');
+const { recordFeedback, getRecentFeedback } = require('./feedbackLogManager');
 const BROADCAST_TEMPLATES = require('./broadcastTemplates');
 const { generateLinkCode, resolveLinkCode, linkPerson, getAllLinkedPeople } = require('./caregiverManager');
 const { markPendingConsent, isPendingConsent, clearPendingConsent } = require('./consentManager');
@@ -110,13 +111,15 @@ async function notifyUnresolved(lineClient, userId) {
  * 「解決しなかった」の詳細フィードバックを薬剤師に通知
  */
 async function notifyFeedback(lineClient, userId, feedbackText) {
-  if (!PHARMACIST_LINE_USER_ID) return;
-
   let patientName = '患者さん';
   try {
     const profile = await lineClient.getProfile(userId);
     patientName = profile.displayName;
   } catch (_) {}
+
+  await recordFeedback(patientName, feedbackText);
+
+  if (!PHARMACIST_LINE_USER_ID) return;
 
   await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
     {
@@ -331,6 +334,29 @@ async function handleEvent(event, lineClient) {
     // 「患者一覧」で特定の患者さんを選んでチャットを開始
     if (trimmedAdminMessage === '患者一覧') {
       return lineClient.replyMessage(event.replyToken, await buildPatientListMessage(lineClient));
+    }
+
+    // 「フィードバック一覧」で「解決しなかった」際の改善点の記録を閲覧
+    if (trimmedAdminMessage === 'フィードバック一覧') {
+      const entries = await getRecentFeedback(10);
+      if (entries.length === 0) {
+        return lineClient.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'まだ記録されたフィードバックはありません。',
+        });
+      }
+
+      const listText = entries
+        .map((entry, i) => {
+          const date = new Date(entry.recordedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+          return `${i + 1}. 👤${entry.patientName}（${date}）\n${entry.feedbackText}`;
+        })
+        .join('\n━━━━━━━━━━━━━━\n');
+
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `📋 直近のフィードバック（新しい順・最大10件）\n━━━━━━━━━━━━━━\n${listText}`,
+      });
     }
 
     // 「一斉送信」だけを送った場合は定型文の選択メニューを表示
