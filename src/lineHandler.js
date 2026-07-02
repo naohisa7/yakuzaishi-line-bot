@@ -479,7 +479,7 @@ async function handleEvent(event, lineClient) {
       const imageBase64 = await fetchImageBase64(lineClient, event.message.id);
       userContent = [
         { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 } },
-        { type: 'text', text: 'この薬、または お薬手帳の写真です。薬剤名や用法用量を確認して教えてください。' },
+        { type: 'text', text: 'この薬、または お薬手帳の写真です。商品名、ジェネリックであればメーカー名、市販薬であれば有効成分、用法用量を確認して教えてください。' },
       ];
     } else {
       userContent = userMessage;
