@@ -10,6 +10,13 @@ const { markPendingConsent, isPendingConsent, clearPendingConsent } = require('.
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { startReply, getReplyTarget, clearReply } = require('./replyManager');
 const { getPasscode, setPasscode } = require('./passcodeManager');
+const {
+  setProfile,
+  addArticle,
+  getArticles,
+  findArticleByIdPrefix,
+  deleteArticle,
+} = require('./contentManager');
 const { getSession: getWebSession } = require('./webSessionManager');
 const { sendToSession } = require('./wsManager');
 
@@ -387,6 +394,63 @@ async function handleEvent(event, lineClient) {
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
         text: `認証コードを更新しました。\n新しいコード：${passcodeChangeMatch[1]}\n（ホームページも同じコードで認証されます）`,
+      });
+    }
+
+    // 「プロフィール編集:本文」でホームページのプロフィールを更新
+    const profileEditMatch = trimmedAdminMessage.match(/^プロフィール編集[:：]([\s\S]+)$/);
+    if (profileEditMatch) {
+      await setProfile(profileEditMatch[1].trim());
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: 'プロフィールを更新しました。ホームページの「プロフィール」ページに反映されています。',
+      });
+    }
+
+    // 「記事追加:タイトル\n本文」でお薬についての記事を投稿
+    const articleAddMatch = trimmedAdminMessage.match(/^記事追加[:：]([^\n]+)\n([\s\S]+)$/);
+    if (articleAddMatch) {
+      const title = articleAddMatch[1].trim();
+      const body = articleAddMatch[2].trim();
+      const article = await addArticle(title, body);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `記事を投稿しました😊\nタイトル：${title}\nID：${article.id.slice(0, 8)}\n\nホームページの「記事」一覧に反映されています。`,
+      });
+    }
+
+    // 「記事一覧」で投稿済みの記事を確認
+    if (trimmedAdminMessage === '記事一覧') {
+      const articles = await getArticles();
+      if (articles.length === 0) {
+        return lineClient.replyMessage(event.replyToken, {
+          type: 'text',
+          text: 'まだ記事が投稿されていません。',
+        });
+      }
+      const listText = articles
+        .map((a, i) => `${i + 1}. ${a.title}（ID: ${a.id.slice(0, 8)}）`)
+        .join('\n');
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `📝 投稿済みの記事一覧\n━━━━━━━━━━━━━━\n${listText}\n\n削除する場合は「記事削除:ID」と送信してください。`,
+      });
+    }
+
+    // 「記事削除:ID」で記事を削除
+    const articleDeleteMatch = trimmedAdminMessage.match(/^記事削除[:：]\s*(\S+)$/);
+    if (articleDeleteMatch) {
+      const target = await findArticleByIdPrefix(articleDeleteMatch[1]);
+      if (!target) {
+        return lineClient.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '該当するIDの記事が見つかりませんでした。「記事一覧」でIDを確認してください。',
+        });
+      }
+      await deleteArticle(target.id);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `記事「${target.title}」を削除しました。`,
       });
     }
 

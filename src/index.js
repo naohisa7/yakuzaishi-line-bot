@@ -6,6 +6,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const multer = require('multer');
 const { WebSocketServer } = require('ws');
+const nodemailer = require('nodemailer');
 const line = require('@line/bot-sdk');
 const { handleEvent } = require('./lineHandler');
 const { askClaude } = require('./claudeHandler');
@@ -15,6 +16,7 @@ const { addMessage, getHistory } = require('./webConversationManager');
 const { enhanceImageToBase64 } = require('./imageEnhancer');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { registerSocket, unregisterSocket, popPendingMessages } = require('./wsManager');
+const { getProfile, getArticles, getArticle } = require('./contentManager');
 
 // ────────────────────────────────────
 // 環境変数チェック
@@ -45,6 +47,18 @@ const lineConfig = {
 };
 
 const lineClient = new line.Client(lineConfig);
+
+// ────────────────────────────────────
+// メール送信設定（未設定の場合はメール送信をスキップ）
+// ────────────────────────────────────
+const mailer =
+  process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD
+    ? nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_APP_PASSWORD },
+      })
+    : null;
+const CONTACT_EMAIL_TO = process.env.CONTACT_EMAIL_TO || process.env.EMAIL_USER;
 
 // ────────────────────────────────────
 // Express アプリ設定
@@ -236,6 +250,81 @@ ${message || '（画像が送信されました）'}
   } catch (err) {
     console.error('Webチャットエラー:', err);
     res.status(500).json({ error: '現在システムの調子が良くありません。しばらくしてから再度お試しください。' });
+  }
+});
+
+// ────────────────────────────────────
+// 薬剤師個人ホームページ（プロフィール・記事・仕事の依頼）
+// ────────────────────────────────────
+
+app.get('/profile', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/profile.html'));
+});
+
+app.get('/api/profile', async (req, res) => {
+  res.json({ text: await getProfile() });
+});
+
+app.get('/articles', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/articles.html'));
+});
+
+app.get('/articles/:id', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/article.html'));
+});
+
+app.get('/api/articles', async (req, res) => {
+  const articles = (await getArticles()).map(({ id, title, createdAt }) => ({ id, title, createdAt }));
+  res.json({ articles });
+});
+
+app.get('/api/articles/:id', async (req, res) => {
+  const article = await getArticle(req.params.id);
+  if (!article) {
+    return res.status(404).json({ error: '記事が見つかりません。' });
+  }
+  res.json(article);
+});
+
+app.get('/contact', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/contact.html'));
+});
+
+app.post('/api/contact', async (req, res) => {
+  const { name, email, message } = req.body;
+
+  if (!name || !email || !message) {
+    return res.json({ ok: false, message: 'すべての項目を入力してください。' });
+  }
+
+  try {
+    if (PHARMACIST_LINE_USER_ID) {
+      await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, {
+        type: 'text',
+        text: `💼【仕事のご依頼】ホームページより
+━━━━━━━━━━━━━━
+👤 お名前・会社名：${name}
+📧 連絡先：${email}
+━━━━━━━━━━━━━━
+💬 依頼内容：
+${message}`,
+      });
+    }
+
+    if (mailer && CONTACT_EMAIL_TO) {
+      await mailer.sendMail({
+        from: process.env.EMAIL_USER,
+        to: CONTACT_EMAIL_TO,
+        replyTo: email,
+        subject: `【仕事のご依頼】${name}様より`,
+        text: `お名前・会社名：${name}\n連絡先：${email}\n\n依頼内容：\n${message}`,
+      });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('お問い合わせ送信エラー:', err);
+    res.status(500).json({ ok: false, message: '送信に失敗しました。しばらくしてから再度お試しください。' });
   }
 });
 

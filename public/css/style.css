@@ -326,3 +326,97 @@ label {
   transform: translateY(-4px);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.1);
 }
+
+/* ────────────────────────────────────
+   サイト共通ナビゲーション
+   ──────────────────────────────────── */
+
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.nav-logo {
+  font-weight: bold;
+  color: var(--brand-dark);
+  text-decoration: none;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.nav-links {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+
+.nav-links a {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.nav-links a.nav-cta {
+  color: var(--brand);
+  font-weight: bold;
+}
+
+/* ────────────────────────────────────
+   サブページ共通（プロフィール・記事・依頼フォーム）
+   ──────────────────────────────────── */
+
+.page-header {
+  background: var(--brand);
+  color: #fff;
+  padding: 32px 20px;
+  text-align: center;
+}
+
+.page-header h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+}
+
+.page-header p {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 14px;
+}
+
+.plain-text {
+  white-space: pre-wrap;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+a.article-card {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.article-date {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+textarea {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border: 1px solid #D1D5DB;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-family: inherit;
+  resize: vertical;
+}
