@@ -490,7 +490,7 @@ async function handleEvent(event, lineClient) {
       const imageBase64 = await fetchImageBase64(lineClient, event.message.id);
       userContent = [
         { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 } },
-        { type: 'text', text: 'この薬、または お薬手帳の写真です。商品名、ジェネリックであればメーカー名、市販薬であれば有効成分、用法用量を確認して教えてください。' },
+        { type: 'text', text: 'この薬、または お薬手帳の写真です。商品名、ジェネリックであればメーカー名、市販薬であれば有効成分、用法用量を確認して教えてください。一包化された裸錠の場合は、錠剤の刻印から薬品名・規格（mg）の特定を試みてください。' },
       ];
     } else {
       userContent = userMessage;
