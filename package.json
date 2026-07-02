@@ -10,10 +10,13 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
     "@line/bot-sdk": "^9.3.0",
+    "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "ioredis": "^5.11.1",
-    "sharp": "^0.35.3"
+    "multer": "^2.2.0",
+    "sharp": "^0.35.3",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.3"

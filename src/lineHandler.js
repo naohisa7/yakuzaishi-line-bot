@@ -1,4 +1,4 @@
-const sharp = require('sharp');
+const { enhanceImageToBase64 } = require('./imageEnhancer');
 const { askClaude } = require('./claudeHandler');
 const { addMessage, getHistory, clearHistory } = require('./conversationManager');
 const { isAuthorized, authorize, getAuthorizedUsers } = require('./authManager');
@@ -9,11 +9,13 @@ const { generateLinkCode, resolveLinkCode, linkPerson, getAllLinkedPeople } = re
 const { markPendingConsent, isPendingConsent, clearPendingConsent } = require('./consentManager');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { startReply, getReplyTarget, clearReply } = require('./replyManager');
+const { getPasscode, setPasscode } = require('./passcodeManager');
+const { getSession: getWebSession } = require('./webSessionManager');
+const { sendToSession } = require('./wsManager');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
 const PHARMACIST_PHONE = process.env.PHARMACIST_PHONE || '（電話番号未設定）';
 const PHARMACIST_PHONE_URI = PHARMACIST_PHONE.replace(/[^0-9+]/g, '');
-const PATIENT_PASSCODE = process.env.PATIENT_PASSCODE;
 
 /**
  * プライバシーポリシーへの同意確認ボタン
@@ -97,6 +99,17 @@ async function getPatientName(lineClient, userId) {
   } catch (_) {
     return '患者さん';
   }
+}
+
+/**
+ * 返信対象（LINEの患者さん、またはホームページのセッション）の表示名を取得
+ */
+async function getReplyTargetName(lineClient, target) {
+  if (target.startsWith('web:')) {
+    const session = await getWebSession(target.slice(4));
+    return session ? session.patientName : '患者さん（ホームページ）';
+  }
+  return getPatientName(lineClient, target);
 }
 
 /**
@@ -257,17 +270,7 @@ async function fetchImageBase64(lineClient, messageId) {
   for await (const chunk of stream) {
     chunks.push(chunk);
   }
-  const rawImage = Buffer.concat(chunks);
-
-  // ぼやけた写真でも文字を読み取りやすいよう、シャープ化とコントラスト補正をかける
-  const enhancedImage = await sharp(rawImage)
-    .resize({ width: 2000, withoutEnlargement: true })
-    .normalize()
-    .sharpen({ sigma: 1.5 })
-    .jpeg({ quality: 90 })
-    .toBuffer();
-
-  return enhancedImage.toString('base64');
+  return enhanceImageToBase64(Buffer.concat(chunks));
 }
 
 /**
@@ -298,11 +301,11 @@ ${userMessage}
 async function handleEvent(event, lineClient) {
   // 薬剤師がボタン（postback）からチャット返信を開始する場合
   if (event.type === 'postback' && PHARMACIST_LINE_USER_ID && event.source.userId === PHARMACIST_LINE_USER_ID) {
-    const match = event.postback.data.match(/^reply:(U[0-9a-f]{32})$/);
+    const match = event.postback.data.match(/^reply:(U[0-9a-f]{32}|web:[0-9a-f-]{36})$/);
     if (match) {
-      const patientId = match[1];
-      startReply(event.source.userId, patientId);
-      const patientName = await getPatientName(lineClient, patientId);
+      const target = match[1];
+      startReply(event.source.userId, target);
+      const patientName = await getReplyTargetName(lineClient, target);
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
         text: `🟢【返信モード中：${patientName}さん】\nここから送るメッセージはすべて${patientName}さんに届きます。\n終了するときは「終了」と送信してください。`,
@@ -327,7 +330,7 @@ async function handleEvent(event, lineClient) {
     // 返信モード中は、次のメッセージをそのまま患者さんに転送する（「終了」まで継続・最優先で処理）
     const replyTarget = getReplyTarget(userId);
     if (replyTarget) {
-      const replyPatientName = await getPatientName(lineClient, replyTarget);
+      const replyPatientName = await getReplyTargetName(lineClient, replyTarget);
 
       if (trimmedAdminMessage === '終了' || trimmedAdminMessage === 'キャンセル') {
         clearReply(userId);
@@ -337,10 +340,12 @@ async function handleEvent(event, lineClient) {
         });
       }
 
-      await lineClient.pushMessage(replyTarget, {
-        type: 'text',
-        text: `💊 担当薬剤師からの返信\n━━━━━━━━━━━━━━\n${userMessage}`,
-      });
+      const replyText = `💊 担当薬剤師からの返信\n━━━━━━━━━━━━━━\n${userMessage}`;
+      if (replyTarget.startsWith('web:')) {
+        await sendToSession(replyTarget.slice(4), { text: replyText });
+      } else {
+        await lineClient.pushMessage(replyTarget, { type: 'text', text: replyText });
+      }
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
         text: `✅ ${replyPatientName}さんに送信しました。\n🟢 返信モード継続中（終了するときは「終了」と送信）`,
@@ -372,6 +377,16 @@ async function handleEvent(event, lineClient) {
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
         text: `📋 直近の改善要望（新しい順・最大10件）\n━━━━━━━━━━━━━━\n${listText}`,
+      });
+    }
+
+    // 「認証コード変更:新しいコード」でLINE・ホームページ共通の認証コードを変更
+    const passcodeChangeMatch = trimmedAdminMessage.match(/^認証コード変更[:：]\s*(\S+)$/);
+    if (passcodeChangeMatch) {
+      await setPasscode(passcodeChangeMatch[1]);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `認証コードを更新しました。\n新しいコード：${passcodeChangeMatch[1]}\n（ホームページも同じコードで認証されます）`,
       });
     }
 
@@ -427,8 +442,9 @@ async function handleEvent(event, lineClient) {
   }
 
   // 0. 認証チェック（かかりつけ患者さん以外は利用不可）
+  const currentPasscode = await getPasscode();
   const alreadyAuthorized = await isAuthorized(userId);
-  if (PATIENT_PASSCODE && !alreadyAuthorized) {
+  if (currentPasscode && !alreadyAuthorized) {
     // 同意待ちの場合の応答
     if (isPendingConsent(userId)) {
       const trimmedConsent = !isImage ? userMessage.trim() : '';
@@ -453,7 +469,7 @@ async function handleEvent(event, lineClient) {
       return lineClient.replyMessage(event.replyToken, buildConsentPrompt());
     }
 
-    if (!isImage && userMessage.trim() === PATIENT_PASSCODE) {
+    if (!isImage && userMessage.trim() === currentPasscode) {
       markPendingConsent(userId);
       return lineClient.replyMessage(event.replyToken, [
         { type: 'text', text: PRIVACY_POLICY_TEXT },

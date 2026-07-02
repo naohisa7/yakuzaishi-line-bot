@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>かかりつけ薬剤師 - 患者さま専用ページ</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div class="header">
+  <h1>💊 かかりつけ薬剤師</h1>
+  <p id="header-sub">患者さま専用ページ</p>
+</div>
+
+<div class="container" id="app-container">
+
+  <section id="login-section" style="display:none">
+    <div class="card">
+      <h3>認証コードを入力してください</h3>
+      <div class="error" id="login-error" style="display:none"></div>
+      <label for="name-input">お名前</label>
+      <input type="text" id="name-input" placeholder="例：田中 太郎">
+      <label for="passcode-input">認証コード</label>
+      <input type="password" id="passcode-input" placeholder="担当薬剤師から伝えられたコード">
+      <button class="btn" id="verify-button">送信</button>
+    </div>
+  </section>
+
+  <section id="consent-section" style="display:none">
+    <div class="card">
+      <h3>ご利用にあたって</h3>
+      <div class="policy-text" id="policy-text"></div>
+      <div class="consent-buttons">
+        <button class="btn" id="agree-button">同意する</button>
+        <button class="btn btn-secondary" id="disagree-button">同意しない</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="chat-section" style="display:none">
+    <div class="card" style="padding:0; overflow:hidden;">
+      <div class="chat-log" id="chat-log"></div>
+      <div class="chat-input-row">
+        <label class="file-btn" for="image-input">📷</label>
+        <input type="file" id="image-input" accept="image/*">
+        <input type="text" id="message-input" placeholder="お薬について相談する">
+        <button id="send-button">送信</button>
+      </div>
+    </div>
+    <div class="footer-note" id="image-filename"></div>
+  </section>
+
+</div>
+
+<script src="/js/patient-chat.js"></script>
+</body>
+</html>
