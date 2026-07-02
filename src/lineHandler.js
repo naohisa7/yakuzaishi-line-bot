@@ -64,6 +64,48 @@ function withSolvedQuickReply(message) {
 }
 
 /**
+ * 患者さんにチャットで直接返信するためのボタン
+ */
+function buildReplyButtonMessage(patientId) {
+  return {
+    type: 'template',
+    altText: 'この患者さんにチャットで直接返信できます',
+    template: {
+      type: 'buttons',
+      text: '電話の代わりに、チャットで直接返信することもできます',
+      actions: [
+        { type: 'message', label: '💬 チャットで返信する', text: `返信:${patientId}` },
+      ],
+    },
+  };
+}
+
+/**
+ * 「解決しなかった」が押されたことを薬剤師に即座に通知
+ */
+async function notifyUnresolved(lineClient, userId) {
+  if (!PHARMACIST_LINE_USER_ID) return;
+
+  let patientName = '患者さん';
+  try {
+    const profile = await lineClient.getProfile(userId);
+    patientName = profile.displayName;
+  } catch (_) {}
+
+  await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
+    {
+      type: 'text',
+      text: `❌【要フォロー】チャットボットで解決しなかったと回答
+━━━━━━━━━━━━━━
+👤 ${patientName}
+━━━━━━━━━━━━━━
+詳しい理由は追ってお伝えします。お急ぎであればこちらから先にチャットできます。`,
+    },
+    buildReplyButtonMessage(userId),
+  ]);
+}
+
+/**
  * 「解決しなかった」の詳細フィードバックを薬剤師に通知
  */
 async function notifyFeedback(lineClient, userId, feedbackText) {
@@ -75,15 +117,18 @@ async function notifyFeedback(lineClient, userId, feedbackText) {
     patientName = profile.displayName;
   } catch (_) {}
 
-  await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, {
-    type: 'text',
-    text: `📝【フィードバック】チャットボットで解決できなかったとの回答
+  await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
+    {
+      type: 'text',
+      text: `📝【フィードバック詳細】チャットボットで解決できなかったとの回答
 ━━━━━━━━━━━━━━
 👤 ${patientName}
 ━━━━━━━━━━━━━━
 💬 いただいた内容：
 ${feedbackText}`,
-  });
+    },
+    buildReplyButtonMessage(userId),
+  ]);
 }
 
 /**
@@ -185,17 +230,7 @@ ${userMessage}
 ━━━━━━━━━━━━━━
 ⚠️ チャットボットでは対応が難しい内容です。`,
     },
-    {
-      type: 'template',
-      altText: 'この患者さんにチャットで直接返信できます',
-      template: {
-        type: 'buttons',
-        text: '電話の代わりに、チャットで直接返信することもできます',
-        actions: [
-          { type: 'message', label: '💬 チャットで返信する', text: `返信:${userId}` },
-        ],
-      },
-    },
+    buildReplyButtonMessage(userId),
   ];
 }
 
@@ -376,6 +411,7 @@ async function handleEvent(event, lineClient) {
 
     if (trimmedMessage === '解決しなかった') {
       markAwaitingFeedback(userId);
+      await notifyUnresolved(lineClient, userId);
       return lineClient.replyMessage(event.replyToken, [
         {
           type: 'text',
