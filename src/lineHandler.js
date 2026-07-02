@@ -1,3 +1,4 @@
+const sharp = require('sharp');
 const { askClaude } = require('./claudeHandler');
 const { addMessage, getHistory, clearHistory } = require('./conversationManager');
 const { isAuthorized, authorize, getAuthorizedUsers } = require('./authManager');
@@ -239,7 +240,17 @@ async function fetchImageBase64(lineClient, messageId) {
   for await (const chunk of stream) {
     chunks.push(chunk);
   }
-  return Buffer.concat(chunks).toString('base64');
+  const rawImage = Buffer.concat(chunks);
+
+  // ぼやけた写真でも文字を読み取りやすいよう、シャープ化とコントラスト補正をかける
+  const enhancedImage = await sharp(rawImage)
+    .resize({ width: 2000, withoutEnlargement: true })
+    .normalize()
+    .sharpen({ sigma: 1.5 })
+    .jpeg({ quality: 90 })
+    .toBuffer();
+
+  return enhancedImage.toString('base64');
 }
 
 /**

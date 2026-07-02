@@ -12,7 +12,8 @@
     "@line/bot-sdk": "^9.3.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
-    "ioredis": "^5.11.1"
+    "ioredis": "^5.11.1",
+    "sharp": "^0.35.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.3"
