@@ -223,15 +223,53 @@ label {
 }
 
 .hero-icon {
+  position: relative;
+  z-index: 1;
   font-size: 56px;
   display: inline-block;
   animation: floatIcon 3.5s ease-in-out infinite;
   filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.2));
+  will-change: transform;
 }
 
 @keyframes floatIcon {
   0%, 100% { transform: translateY(0) rotate(-3deg); }
   50% { transform: translateY(-12px) rotate(3deg); }
+}
+
+.hero-deco {
+  position: absolute;
+  font-size: 32px;
+  opacity: 0.22;
+  pointer-events: none;
+  user-select: none;
+  filter: blur(0.3px);
+}
+
+.deco-1 { top: 18%; left: 10%; font-size: 30px; animation: drift1 8s ease-in-out infinite; }
+.deco-2 { top: 62%; left: 88%; font-size: 44px; animation: drift2 11s ease-in-out infinite; }
+.deco-3 { top: 78%; left: 14%; font-size: 26px; animation: drift3 7s ease-in-out infinite; }
+.deco-4 { top: 22%; left: 82%; font-size: 28px; animation: drift4 13s ease-in-out infinite; }
+.deco-5 { top: 8%; left: 55%; font-size: 22px; animation: drift3 9.5s ease-in-out infinite; }
+
+@keyframes drift1 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(22px, -26px) rotate(20deg); }
+}
+
+@keyframes drift2 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(-26px, 22px) rotate(-22deg); }
+}
+
+@keyframes drift3 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(18px, 18px) rotate(14deg); }
+}
+
+@keyframes drift4 {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(-20px, -16px) rotate(-16deg); }
 }
 
 .hero h1 {
@@ -264,6 +302,8 @@ label {
 }
 
 .btn-hero {
+  position: relative;
+  overflow: hidden;
   width: auto;
   display: inline-block;
   padding: 16px 36px;
@@ -276,6 +316,23 @@ label {
 .btn-hero:hover {
   background: #fff;
   transform: translateY(-3px) scale(1.03);
+}
+
+.btn-hero::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(47, 158, 143, 0.35), transparent);
+  transform: skewX(-20deg);
+  animation: shineSweep 3.2s ease-in-out infinite;
+}
+
+@keyframes shineSweep {
+  0% { left: -60%; }
+  55%, 100% { left: 130%; }
 }
 
 @keyframes pulseGlow {
@@ -309,13 +366,25 @@ label {
 
 .reveal-on-scroll {
   opacity: 0;
-  transform: translateY(24px);
+  transform: translateY(24px) scale(0.96);
   transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.reveal-on-scroll.reveal-left {
+  transform: translateX(-48px) scale(0.96);
+}
+
+.reveal-on-scroll.reveal-right {
+  transform: translateX(48px) scale(0.96);
+}
+
+.reveal-on-scroll.reveal-up {
+  transform: translateY(48px) scale(0.96);
 }
 
 .reveal-on-scroll.in-view {
   opacity: 1;
-  transform: translateY(0);
+  transform: translate(0, 0) scale(1);
 }
 
 .card {
@@ -325,6 +394,16 @@ label {
 .card:hover {
   transform: translateY(-4px);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.1);
+}
+
+.tilt-card {
+  transform-style: preserve-3d;
+  perspective: 800px;
+  transition: transform 0.15s ease-out, box-shadow 0.25s ease;
+}
+
+.tilt-card.in-view {
+  transition: transform 0.15s ease-out, box-shadow 0.25s ease, opacity 0.7s ease;
 }
 
 /* ────────────────────────────────────
@@ -351,6 +430,12 @@ label {
   text-decoration: none;
   font-size: 15px;
   white-space: nowrap;
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.nav-logo:hover {
+  transform: rotate(-4deg) scale(1.05);
 }
 
 .nav-links {
@@ -419,4 +504,36 @@ textarea {
   margin-bottom: 12px;
   font-family: inherit;
   resize: vertical;
+}
+
+/* ────────────────────────────────────
+   アニメーション低減設定への配慮
+   ──────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .hero,
+  .hero-icon,
+  .hero-deco,
+  .btn-hero,
+  .btn-hero::after {
+    animation: none !important;
+  }
+
+  .reveal {
+    animation: none !important;
+    opacity: 1;
+    transform: none;
+  }
+
+  .reveal-on-scroll {
+    transition: none !important;
+    opacity: 1;
+    transform: none !important;
+  }
+
+  .tilt-card,
+  .card,
+  .nav-logo {
+    transition: none !important;
+  }
 }
