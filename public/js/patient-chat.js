@@ -9,6 +9,7 @@
 
   let sessionId = null;
   let pendingResolutionTimer = null;
+  let isSending = false;
   const RESOLUTION_PROMPT_DELAY_MS = 8000;
 
   function showSection(section) {
@@ -22,6 +23,19 @@
     div.textContent = text;
     chatLog.appendChild(div);
     chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  function addTypingBubble() {
+    const div = document.createElement('div');
+    div.className = 'bubble assistant typing-bubble';
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement('span');
+      dot.className = 'typing-dot';
+      div.appendChild(dot);
+    }
+    chatLog.appendChild(div);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    return div;
   }
 
   function addCallBubble(phone) {
@@ -229,7 +243,8 @@
     imageFilename.textContent = file ? '添付：' + file.name : '';
   });
 
-  document.getElementById('send-button').addEventListener('click', sendMessage);
+  const sendButton = document.getElementById('send-button');
+  sendButton.addEventListener('click', sendMessage);
 
   let isComposing = false;
   const messageInput = document.getElementById('message-input');
@@ -247,11 +262,16 @@
   });
 
   async function sendMessage() {
+    if (isSending) return;
+
     const input = document.getElementById('message-input');
     const imageInput = document.getElementById('image-input');
     const text = input.value.trim();
     const file = imageInput.files[0];
     if (!text && !file) return;
+
+    isSending = true;
+    sendButton.disabled = true;
 
     // まだ会話が続いている途中で「解決したか」を聞かないよう、
     // 新しいメッセージを送ったら前回分の保留中の確認は取り消す
@@ -271,19 +291,37 @@
     imageInput.value = '';
     imageFilename.textContent = '';
 
-    const res = await fetch('/api/chat', { method: 'POST', body: formData });
-    const data = await res.json();
-    if (data.reply) {
-      addBubble('assistant', data.reply);
-    }
-    if (data.needsEscalation && data.phone) {
-      addCallBubble(data.phone);
-    } else if (data.reply) {
-      // すぐには聞かず、一定時間これ以上メッセージが来なければ
-      // 会話が一段落したとみなして「解決したか」を確認する
-      pendingResolutionTimer = setTimeout(() => {
-        addResolutionPrompt();
-      }, RESOLUTION_PROMPT_DELAY_MS);
+    // 写真の解析など、返信に時間がかかる場合でも待っていることが分かるように表示
+    const typingBubble = addTypingBubble();
+
+    try {
+      const res = await fetch('/api/chat', { method: 'POST', body: formData });
+      const data = await res.json();
+      typingBubble.remove();
+
+      if (!res.ok || data.error) {
+        addBubble('assistant', data.error || '現在システムの調子が良くありません。しばらくしてから再度お試しください。');
+        return;
+      }
+
+      if (data.reply) {
+        addBubble('assistant', data.reply);
+      }
+      if (data.needsEscalation && data.phone) {
+        addCallBubble(data.phone);
+      } else if (data.reply) {
+        // すぐには聞かず、一定時間これ以上メッセージが来なければ
+        // 会話が一段落したとみなして「解決したか」を確認する
+        pendingResolutionTimer = setTimeout(() => {
+          addResolutionPrompt();
+        }, RESOLUTION_PROMPT_DELAY_MS);
+      }
+    } catch (err) {
+      typingBubble.remove();
+      addBubble('assistant', '通信エラーが発生しました。しばらくしてから再度お試しください。');
+    } finally {
+      isSending = false;
+      sendButton.disabled = false;
     }
   }
 

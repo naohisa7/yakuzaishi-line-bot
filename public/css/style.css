@@ -224,6 +224,35 @@ label {
   gap: 10px;
 }
 
+.bubble.typing-bubble {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 18px;
+}
+
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.4;
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+
 .call-link {
   display: inline-flex;
   align-items: center;
@@ -1358,7 +1387,8 @@ textarea {
   .page-header::after,
   .nav-logo-icon,
   .cta-banner,
-  .trust-badge {
+  .trust-badge,
+  .typing-dot {
     animation: none !important;
   }
 
