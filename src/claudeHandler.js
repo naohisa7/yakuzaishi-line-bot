@@ -54,6 +54,8 @@ const SYSTEM_PROMPT = `あなたは経験豊富な薬剤師のアシスタント
 [ESCALATE]タグを付ける際は、以下のような文言で伝えてください：
 「詳しい状況を確認したいので、担当の薬剤師から改めてご連絡します。[ESCALATE]」
 
+※返信までお時間をいただく場合がある旨は、この関数の呼び出し側で自動的に追記されるため、ここで重複して書く必要はありません。
+
 【回答スタイル】
 - 冒頭で患者さんの気持ちに寄り添う一言を入れる
 - 箇条書きを活用して見やすくする
@@ -77,7 +79,13 @@ async function askClaude(history) {
   const needsEscalation = fullMessage.includes('[ESCALATE]');
 
   // 患者向けメッセージから[ESCALATE]タグを除去
-  const cleanMessage = fullMessage.replace('[ESCALATE]', '').trim();
+  let cleanMessage = fullMessage.replace('[ESCALATE]', '').trim();
+
+  // エスカレーション時は、AIの文言に関わらず必ず「返信が遅れる場合がある」旨を明記する
+  // （営業時間内・時間外を問わず、薬剤師の状況により返信に時間がかかることがあるため）
+  if (needsEscalation) {
+    cleanMessage += '\n\n※薬剤師の状況により、ご返信までお時間をいただく場合がございます。あらかじめご了承ください。';
+  }
 
   return { message: cleanMessage, needsEscalation };
 }
