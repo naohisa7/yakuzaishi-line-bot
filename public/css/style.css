@@ -4,6 +4,14 @@
   --bg: #F4F6F5;
   --text: #1F2937;
   --muted: #6B7280;
+  --amber: #F0A93A;
+  --amber-dark: #C97F12;
+  --purple: #8B7FD6;
+  --purple-dark: #6C5CC9;
+  --rose: #EC6F8E;
+  --rose-dark: #D9527A;
+  --sky: #4FA3D1;
+  --sky-dark: #2F6B9E;
 }
 
 * {
@@ -11,10 +19,23 @@
 }
 
 body {
+  position: relative;
   margin: 0;
   font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
   background: var(--bg);
   color: var(--text);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(circle at 8% 8%, rgba(47, 158, 143, 0.10), transparent 38%),
+    radial-gradient(circle at 92% 15%, rgba(240, 169, 58, 0.09), transparent 38%),
+    radial-gradient(circle at 15% 85%, rgba(139, 127, 214, 0.08), transparent 38%),
+    radial-gradient(circle at 90% 92%, rgba(236, 111, 142, 0.08), transparent 38%);
 }
 
 .header {
@@ -491,15 +512,37 @@ label {
   font-size: 24px;
   margin-bottom: 12px;
   background: linear-gradient(135deg, #E4F5F1, #CFEAE3);
+  box-shadow: 0 8px 16px -6px rgba(31, 111, 101, 0.35), inset 0 2px 3px rgba(255, 255, 255, 0.6), inset 0 -3px 5px rgba(0, 0, 0, 0.08);
 }
 
-.card-icon-circle.alt {
+.card-icon-circle.c-amber {
   background: linear-gradient(135deg, #FDEFD9, #FBE0B8);
+  box-shadow: 0 8px 16px -6px rgba(201, 127, 18, 0.35), inset 0 2px 3px rgba(255, 255, 255, 0.6), inset 0 -3px 5px rgba(0, 0, 0, 0.08);
+}
+
+.card-icon-circle.c-purple {
+  background: linear-gradient(135deg, #EAE6FA, #D6CDF5);
+  box-shadow: 0 8px 16px -6px rgba(108, 92, 201, 0.35), inset 0 2px 3px rgba(255, 255, 255, 0.6), inset 0 -3px 5px rgba(0, 0, 0, 0.08);
 }
 
 .card.highlight {
-  background: #EFF9F6;
-  border: 1px solid #CFEAE3;
+  position: relative;
+  background: #FAF9FE;
+  border: 1px solid #E6DFFA;
+  box-shadow: 0 16px 32px -14px rgba(108, 92, 201, 0.35);
+}
+
+.ribbon {
+  position: absolute;
+  top: 16px;
+  right: -32px;
+  transform: rotate(40deg);
+  background: linear-gradient(120deg, var(--rose), var(--rose-dark));
+  color: #fff;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 4px 38px;
+  box-shadow: 0 4px 10px rgba(217, 82, 122, 0.4);
 }
 
 .eyebrow-badge {
@@ -518,6 +561,44 @@ label {
 }
 
 /* ────────────────────────────────────
+   信頼バッジ
+   ──────────────────────────────────── */
+
+.trust-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  max-width: 480px;
+  margin: -28px auto 0;
+  padding: 0 20px;
+  position: relative;
+  z-index: 2;
+}
+
+.trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+  box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.3);
+  animation: badgeFloat 4s ease-in-out infinite;
+}
+
+.trust-1 { background: linear-gradient(135deg, var(--brand), var(--brand-dark)); animation-delay: 0s; }
+.trust-2 { background: linear-gradient(135deg, var(--sky), var(--sky-dark)); animation-delay: 0.5s; }
+.trust-3 { background: linear-gradient(135deg, var(--rose), var(--rose-dark)); animation-delay: 1s; }
+
+@keyframes badgeFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* ────────────────────────────────────
    利用の流れ・こんな時にご相談ください
    ──────────────────────────────────── */
 
@@ -526,6 +607,8 @@ label {
   font-size: 20px;
   margin: 0 0 32px;
   color: var(--text);
+  position: relative;
+  z-index: 1;
 }
 
 .section-title::after {
@@ -540,10 +623,42 @@ label {
 
 .steps-section,
 .usecase-section {
+  position: relative;
+  overflow: hidden;
+  padding: 56px 0;
+}
+
+.steps-section {
+  background: linear-gradient(180deg, #EFF9F6, #F4F6F5);
+}
+
+.usecase-section {
+  background: linear-gradient(180deg, #FDF6EC, #F4F6F5);
+}
+
+.steps-inner,
+.usecase-inner {
+  position: relative;
+  z-index: 1;
   max-width: 480px;
   margin: 0 auto;
-  padding: 48px 20px;
+  padding: 0 20px;
 }
+
+.section-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(10px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.blob-a { width: 180px; height: 180px; top: -40px; left: -60px; background: radial-gradient(circle, rgba(47, 158, 143, 0.18), transparent 70%); }
+.blob-b { width: 220px; height: 220px; bottom: -80px; right: -70px; background: radial-gradient(circle, rgba(139, 127, 214, 0.16), transparent 70%); }
+.blob-c { width: 200px; height: 200px; top: -60px; right: -60px; background: radial-gradient(circle, rgba(240, 169, 58, 0.18), transparent 70%); }
+.blob-d { width: 180px; height: 180px; bottom: -60px; left: -50px; background: radial-gradient(circle, rgba(236, 111, 142, 0.16), transparent 70%); }
+.blob-e { width: 200px; height: 200px; top: -50px; left: -50px; background: radial-gradient(circle, rgba(240, 169, 58, 0.3), transparent 70%); }
+.blob-f { width: 220px; height: 220px; bottom: -70px; right: -60px; background: radial-gradient(circle, rgba(139, 127, 214, 0.3), transparent 70%); }
 
 .steps-list {
   position: relative;
@@ -559,7 +674,7 @@ label {
   top: 12px;
   bottom: 12px;
   width: 2px;
-  background: linear-gradient(to bottom, var(--brand), #CFEAE3);
+  background: linear-gradient(to bottom, var(--brand), var(--amber), var(--purple), var(--rose));
 }
 
 .step-item {
@@ -579,11 +694,34 @@ label {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--brand), var(--brand-dark));
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.55), transparent 45%),
+    linear-gradient(135deg, var(--brand), var(--brand-dark));
   color: #fff;
   font-weight: bold;
   font-size: 18px;
-  box-shadow: 0 6px 14px rgba(47, 158, 143, 0.3);
+  box-shadow: 0 10px 18px -6px rgba(31, 111, 101, 0.45), inset 0 -3px 6px rgba(0, 0, 0, 0.18), inset 0 2px 3px rgba(255, 255, 255, 0.4);
+}
+
+.step-item:nth-child(2) .step-number {
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.55), transparent 45%),
+    linear-gradient(135deg, var(--amber), var(--amber-dark));
+  box-shadow: 0 10px 18px -6px rgba(201, 127, 18, 0.45), inset 0 -3px 6px rgba(0, 0, 0, 0.18), inset 0 2px 3px rgba(255, 255, 255, 0.4);
+}
+
+.step-item:nth-child(3) .step-number {
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.55), transparent 45%),
+    linear-gradient(135deg, var(--purple), var(--purple-dark));
+  box-shadow: 0 10px 18px -6px rgba(108, 92, 201, 0.45), inset 0 -3px 6px rgba(0, 0, 0, 0.18), inset 0 2px 3px rgba(255, 255, 255, 0.4);
+}
+
+.step-item:nth-child(4) .step-number {
+  background:
+    radial-gradient(circle at 30% 28%, rgba(255, 255, 255, 0.55), transparent 45%),
+    linear-gradient(135deg, var(--rose), var(--rose-dark));
+  box-shadow: 0 10px 18px -6px rgba(217, 82, 122, 0.45), inset 0 -3px 6px rgba(0, 0, 0, 0.18), inset 0 2px 3px rgba(255, 255, 255, 0.4);
 }
 
 .step-body h4 {
@@ -612,14 +750,20 @@ label {
   background: #fff;
   border: 1px solid #E1EFEC;
   font-size: 13px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
+.tag-chip:nth-child(6n+1) { background: #EAF7F3; border-color: #BFE6DB; color: #1F6F65; }
+.tag-chip:nth-child(6n+2) { background: #FDF3E3; border-color: #F3D9A0; color: #8A5A15; }
+.tag-chip:nth-child(6n+3) { background: #F1EEFB; border-color: #D6CDF5; color: #5B4B9E; }
+.tag-chip:nth-child(6n+4) { background: #FDECF1; border-color: #F3C4D4; color: #9E3A5B; }
+.tag-chip:nth-child(6n+5) { background: #EAF3FB; border-color: #C4DEF3; color: #2F6B9E; }
+.tag-chip:nth-child(6n+6) { background: #F3F9E8; border-color: #D8ECB3; color: #5B7E1F; }
+
 .tag-chip:hover {
-  transform: translateY(-3px);
-  background: #EFF9F6;
-  box-shadow: 0 8px 16px rgba(47, 158, 143, 0.18);
+  transform: translateY(-3px) scale(1.04);
+  box-shadow: 0 10px 20px -4px rgba(0, 0, 0, 0.18);
 }
 
 /* ────────────────────────────────────
@@ -984,7 +1128,8 @@ textarea {
   .page-header::before,
   .page-header::after,
   .nav-logo-icon,
-  .cta-banner {
+  .cta-banner,
+  .trust-badge {
     animation: none !important;
   }
 
