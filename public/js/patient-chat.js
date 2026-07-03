@@ -19,6 +19,18 @@
 
   let currentUtteranceButton = null;
 
+  // 絵文字をそのまま読み上げると「にっこり笑う顔」のように読まれて不自然なため、
+  // 読み上げ用のテキストからだけ取り除く（画面上の表示はそのまま絵文字ありで残す）
+  function stripEmojiForSpeech(text) {
+    return text
+      .replace(/\p{Extended_Pictographic}(‍\p{Extended_Pictographic})*/gu, '')
+      .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '')
+      .replace(/️/g, '')
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/\n{2,}/g, '\n')
+      .trim();
+  }
+
   function speak(text, button) {
     if (!('speechSynthesis' in window)) return;
 
@@ -35,7 +47,7 @@
       if (sameButton) return; // 同じボタンをもう一度押した場合は停止のみ
     }
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(stripEmojiForSpeech(text));
     utterance.lang = 'ja-JP';
     utterance.onend = () => {
       resetButton(button);
