@@ -120,7 +120,10 @@
     isComposing = false;
   });
   messageInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !isComposing && !e.isComposing) sendMessage();
+    if (e.key === 'Enter' && !isComposing && !e.isComposing) {
+      e.preventDefault();
+      sendMessage();
+    }
   });
 
   async function sendMessage() {
@@ -132,6 +135,11 @@
 
     addBubble('user', text || '（写真を送信しました）');
     input.value = '';
+    // 一部のIME環境では確定直後に元の文字列がinputへ書き戻されることがあるため、
+    // 次のティックで再度クリアして確実に空にする
+    setTimeout(() => {
+      input.value = '';
+    }, 0);
 
     const formData = new FormData();
     if (text) formData.append('message', text);
