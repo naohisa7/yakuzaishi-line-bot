@@ -8,6 +8,8 @@
   const imageFilename = document.getElementById('image-filename');
 
   let sessionId = null;
+  let pendingResolutionTimer = null;
+  const RESOLUTION_PROMPT_DELAY_MS = 8000;
 
   function showSection(section) {
     [loginSection, consentSection, chatSection].forEach((s) => (s.style.display = 'none'));
@@ -251,6 +253,10 @@
     const file = imageInput.files[0];
     if (!text && !file) return;
 
+    // まだ会話が続いている途中で「解決したか」を聞かないよう、
+    // 新しいメッセージを送ったら前回分の保留中の確認は取り消す
+    clearTimeout(pendingResolutionTimer);
+
     addBubble('user', text || '（写真を送信しました）');
     input.value = '';
     // 一部のIME環境では確定直後に元の文字列がinputへ書き戻されることがあるため、
@@ -273,7 +279,11 @@
     if (data.needsEscalation && data.phone) {
       addCallBubble(data.phone);
     } else if (data.reply) {
-      addResolutionPrompt();
+      // すぐには聞かず、一定時間これ以上メッセージが来なければ
+      // 会話が一段落したとみなして「解決したか」を確認する
+      pendingResolutionTimer = setTimeout(() => {
+        addResolutionPrompt();
+      }, RESOLUTION_PROMPT_DELAY_MS);
     }
   }
 
