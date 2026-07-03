@@ -22,6 +22,24 @@
     chatLog.scrollTop = chatLog.scrollHeight;
   }
 
+  function addCallBubble(phone) {
+    const div = document.createElement('div');
+    div.className = 'bubble assistant call-bubble';
+
+    const p = document.createElement('p');
+    p.textContent = 'お急ぎの場合は、担当薬剤師に直接お電話いただくこともできます。';
+    div.appendChild(p);
+
+    const link = document.createElement('a');
+    link.className = 'call-link';
+    link.href = 'tel:' + phone.replace(/[^0-9+]/g, '');
+    link.textContent = '📞 ' + phone + ' に電話する';
+    div.appendChild(link);
+
+    chatLog.appendChild(div);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
   async function init() {
     const res = await fetch('/api/session-status');
     const data = await res.json();
@@ -151,6 +169,9 @@
     const data = await res.json();
     if (data.reply) {
       addBubble('assistant', data.reply);
+    }
+    if (data.needsEscalation && data.phone) {
+      addCallBubble(data.phone);
     }
   }
 

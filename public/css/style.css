@@ -234,6 +234,33 @@ label {
   border: 1px solid #F0C989;
 }
 
+.bubble.call-bubble {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.call-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-weight: bold;
+  font-size: 14px;
+  text-decoration: none;
+  box-shadow: 0 6px 14px rgba(47, 158, 143, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.call-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(47, 158, 143, 0.4);
+}
+
 .chat-input-row {
   display: flex;
   gap: 8px;

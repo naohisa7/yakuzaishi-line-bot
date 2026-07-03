@@ -41,6 +41,7 @@ REQUIRED_ENV.forEach((key) => {
 });
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
+const PHARMACIST_PHONE = process.env.PHARMACIST_PHONE || '';
 
 // ────────────────────────────────────
 // LINE SDK 設定
@@ -220,7 +221,11 @@ app.post('/api/chat', requireWebSession, upload.single('image'), async (req, res
     const { message: replyText, needsEscalation } = await askClaude(history);
     await addMessage(sessionId, 'assistant', replyText);
 
-    res.json({ reply: replyText });
+    res.json({
+      reply: replyText,
+      needsEscalation,
+      phone: needsEscalation ? PHARMACIST_PHONE : undefined,
+    });
 
     if (needsEscalation && PHARMACIST_LINE_USER_ID) {
       const patientName = req.webSession.patientName || '患者さん';
