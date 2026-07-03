@@ -110,8 +110,17 @@
   });
 
   document.getElementById('send-button').addEventListener('click', sendMessage);
-  document.getElementById('message-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') sendMessage();
+
+  let isComposing = false;
+  const messageInput = document.getElementById('message-input');
+  messageInput.addEventListener('compositionstart', () => {
+    isComposing = true;
+  });
+  messageInput.addEventListener('compositionend', () => {
+    isComposing = false;
+  });
+  messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !isComposing && !e.isComposing) sendMessage();
   });
 
   async function sendMessage() {
