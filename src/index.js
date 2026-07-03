@@ -21,6 +21,7 @@ const { enhanceImageToBase64 } = require('./imageEnhancer');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { registerSocket, unregisterSocket, popPendingMessages } = require('./wsManager');
 const { getProfile, getArticles, getArticle } = require('./contentManager');
+const { recordFeedback } = require('./feedbackLogManager');
 
 // ────────────────────────────────────
 // 環境変数チェック
@@ -185,6 +186,25 @@ app.get('/api/chat/history', requireWebSession, async (req, res) => {
   res.json({ messages });
 });
 
+function buildWebReplyButtonMessage(sessionId) {
+  return {
+    type: 'template',
+    altText: 'この患者さんにチャットで直接返信できます',
+    template: {
+      type: 'buttons',
+      text: '電話の代わりに、チャットで直接返信することもできます',
+      actions: [
+        {
+          type: 'postback',
+          label: '💬 チャットで返信する',
+          data: `reply:web:${sessionId}`,
+          displayText: '💬 チャットで返信する',
+        },
+      ],
+    },
+  };
+}
+
 app.post('/api/chat', requireWebSession, upload.single('image'), async (req, res) => {
   if (!req.webSession.consented) {
     return res.status(403).json({ error: 'プライバシーポリシーへの同意が必要です。' });
@@ -241,28 +261,62 @@ ${message || '（画像が送信されました）'}
 ━━━━━━━━━━━━━━
 ⚠️ チャットボットでは対応が難しい内容です。`,
         },
-        {
-          type: 'template',
-          altText: 'この患者さんにチャットで直接返信できます',
-          template: {
-            type: 'buttons',
-            text: '電話の代わりに、チャットで直接返信することもできます',
-            actions: [
-              {
-                type: 'postback',
-                label: '💬 チャットで返信する',
-                data: `reply:web:${sessionId}`,
-                displayText: '💬 チャットで返信する',
-              },
-            ],
-          },
-        },
+        buildWebReplyButtonMessage(sessionId),
       ]);
       console.log(`[ESCALATE-WEB] sessionId: ${sessionId} の相談を薬剤師に通知しました`);
     }
   } catch (err) {
     console.error('Webチャットエラー:', err);
     res.status(500).json({ error: '現在システムの調子が良くありません。しばらくしてから再度お試しください。' });
+  }
+});
+
+app.post('/api/chat/resolution', requireWebSession, async (req, res) => {
+  const sessionId = req.webSessionId;
+  const resolved = !!req.body.resolved;
+  const feedback = (req.body.feedback || '').trim();
+
+  if (resolved) {
+    return res.json({ ok: true });
+  }
+
+  try {
+    const patientName = req.webSession.patientName || '患者さん（ホームページ）';
+
+    if (feedback) {
+      await recordFeedback(patientName, feedback);
+      if (PHARMACIST_LINE_USER_ID) {
+        await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
+          {
+            type: 'text',
+            text: `📝【フィードバック詳細・ホームページより】チャットボットで解決できなかったとの回答
+━━━━━━━━━━━━━━
+👤 ${patientName}（ホームページ）
+━━━━━━━━━━━━━━
+💬 いただいた内容：
+${feedback}`,
+          },
+          buildWebReplyButtonMessage(sessionId),
+        ]);
+      }
+    } else if (PHARMACIST_LINE_USER_ID) {
+      await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
+        {
+          type: 'text',
+          text: `❌【要フォロー・ホームページより】チャットボットで解決しなかったと回答
+━━━━━━━━━━━━━━
+👤 ${patientName}（ホームページ）
+━━━━━━━━━━━━━━
+詳しい理由は追ってお伝えします。お急ぎであればこちらから先にチャットできます。`,
+        },
+        buildWebReplyButtonMessage(sessionId),
+      ]);
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('解決確認フィードバック送信エラー:', err);
+    res.status(500).json({ ok: false });
   }
 });
 

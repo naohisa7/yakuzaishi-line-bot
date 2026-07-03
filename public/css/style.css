@@ -261,6 +261,70 @@ label {
   box-shadow: 0 10px 20px rgba(47, 158, 143, 0.4);
 }
 
+.bubble.resolution-bubble {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.resolution-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.resolution-btn {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #D1D5DB;
+  background: #fff;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.resolution-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+.resolution-yes {
+  border-color: #BFE6DB;
+  color: #1F6F65;
+}
+
+.resolution-yes:hover {
+  background: #EAF7F3;
+}
+
+.resolution-no {
+  border-color: #F3C4D4;
+  color: #9E3A5B;
+}
+
+.resolution-no:hover {
+  background: #FDECF1;
+}
+
+.feedback-form-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.feedback-form-row input[type="text"] {
+  flex: 1;
+  margin-bottom: 0;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.feedback-form-row .call-link {
+  flex-shrink: 0;
+  padding: 10px 16px;
+}
+
 .chat-input-row {
   display: flex;
   gap: 8px;

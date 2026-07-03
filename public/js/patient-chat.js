@@ -40,6 +40,106 @@
     chatLog.scrollTop = chatLog.scrollHeight;
   }
 
+  function addResolutionPrompt() {
+    const div = document.createElement('div');
+    div.className = 'bubble assistant resolution-bubble';
+
+    const p = document.createElement('p');
+    p.textContent = 'この回答で解決しましたか？';
+    div.appendChild(p);
+
+    const row = document.createElement('div');
+    row.className = 'resolution-buttons';
+
+    const yesBtn = document.createElement('button');
+    yesBtn.type = 'button';
+    yesBtn.className = 'resolution-btn resolution-yes';
+    yesBtn.textContent = '✅ 解決した';
+
+    const noBtn = document.createElement('button');
+    noBtn.type = 'button';
+    noBtn.className = 'resolution-btn resolution-no';
+    noBtn.textContent = '❌ 解決しなかった';
+
+    row.appendChild(yesBtn);
+    row.appendChild(noBtn);
+    div.appendChild(row);
+
+    chatLog.appendChild(div);
+    chatLog.scrollTop = chatLog.scrollHeight;
+
+    yesBtn.addEventListener('click', async () => {
+      div.innerHTML = '';
+      const doneP = document.createElement('p');
+      doneP.textContent = 'よかったです！またいつでもご相談ください。';
+      div.appendChild(doneP);
+      chatLog.scrollTop = chatLog.scrollHeight;
+
+      await fetch('/api/chat/resolution', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resolved: true }),
+      });
+    });
+
+    noBtn.addEventListener('click', () => {
+      showFeedbackForm(div);
+    });
+  }
+
+  function showFeedbackForm(container) {
+    container.innerHTML = '';
+
+    const p = document.createElement('p');
+    p.textContent =
+      '申し訳ありません。今後の改善のため、どのような点が分かりにくかった・不十分だったか教えていただけますか？（未入力のまま送信いただいても構いません）';
+    container.appendChild(p);
+
+    const row = document.createElement('div');
+    row.className = 'feedback-form-row';
+
+    const feedbackInput = document.createElement('input');
+    feedbackInput.type = 'text';
+    feedbackInput.placeholder = '例：もっと具体的な薬の名前が知りたかった';
+
+    const sendBtn = document.createElement('button');
+    sendBtn.type = 'button';
+    sendBtn.className = 'call-link';
+    sendBtn.textContent = '送信';
+
+    row.appendChild(feedbackInput);
+    row.appendChild(sendBtn);
+    container.appendChild(row);
+    chatLog.scrollTop = chatLog.scrollHeight;
+
+    let submitting = false;
+    const submit = async () => {
+      if (submitting) return;
+      submitting = true;
+
+      const feedback = feedbackInput.value.trim();
+      container.innerHTML = '';
+      const doneP = document.createElement('p');
+      doneP.textContent = '貴重なご意見をありがとうございました。今後の改善に活かします🙏';
+      container.appendChild(doneP);
+      chatLog.scrollTop = chatLog.scrollHeight;
+
+      await fetch('/api/chat/resolution', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resolved: false, feedback }),
+      });
+    };
+
+    sendBtn.addEventListener('click', submit);
+    feedbackInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.isComposing) {
+        e.preventDefault();
+        submit();
+      }
+    });
+  }
+
   async function init() {
     const res = await fetch('/api/session-status');
     const data = await res.json();
@@ -172,6 +272,8 @@
     }
     if (data.needsEscalation && data.phone) {
       addCallBubble(data.phone);
+    } else if (data.reply) {
+      addResolutionPrompt();
     }
   }
 
