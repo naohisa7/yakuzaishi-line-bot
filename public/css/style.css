@@ -374,6 +374,85 @@ label {
 }
 
 /* ────────────────────────────────────
+   ホーム画面への追加バナー（PWAインストール導線）
+   ──────────────────────────────────── */
+
+.install-banner {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 16px 34px 16px 16px;
+  background: linear-gradient(135deg, #fff, #F1EEFB);
+  border: 1px solid #E1D9F7;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px -8px rgba(108, 92, 201, 0.3);
+  position: relative;
+}
+
+.install-banner-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.install-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.install-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.install-text strong {
+  display: block;
+  font-size: 15px;
+}
+
+.install-text p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.install-btn {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.install-dismiss {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  border: none;
+  background: none;
+  font-size: 18px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+}
+
+.install-instructions {
+  display: none;
+  margin-top: 8px;
+  padding: 14px 18px;
+  background: #fff;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+.install-instructions ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+/* ────────────────────────────────────
    トップページ（ランディング）専用
    ──────────────────────────────────── */
 

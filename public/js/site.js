@@ -8,6 +8,68 @@
     });
   }
 
+  // ── ホーム画面への追加バナー ──
+  (function () {
+    const banner = document.getElementById('install-banner');
+    if (!banner) return;
+
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (isStandalone) return;
+
+    const DISMISS_KEY = 'installBannerDismissedAt';
+    const DISMISS_DAYS = 14;
+    const dismissedAt = localStorage.getItem(DISMISS_KEY);
+    if (dismissedAt && Date.now() - Number(dismissedAt) < DISMISS_DAYS * 86400000) return;
+
+    const installBtn = document.getElementById('install-btn');
+    const dismissBtn = document.getElementById('install-dismiss');
+    const instructions = document.getElementById('install-instructions');
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    let deferredPrompt = null;
+
+    const dismiss = () => {
+      banner.style.display = 'none';
+      if (instructions) instructions.style.display = 'none';
+      localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    };
+
+    if (dismissBtn) dismissBtn.addEventListener('click', dismiss);
+
+    if (isIOS) {
+      // iOS Safariは自動インストールできないため手順を案内する
+      banner.style.display = 'flex';
+      if (installBtn) {
+        installBtn.textContent = '追加方法を見る';
+        installBtn.addEventListener('click', () => {
+          if (!instructions) return;
+          instructions.style.display = instructions.style.display === 'block' ? 'none' : 'block';
+        });
+      }
+    } else {
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        banner.style.display = 'flex';
+      });
+
+      if (installBtn) {
+        installBtn.addEventListener('click', async () => {
+          if (!deferredPrompt) return;
+          deferredPrompt.prompt();
+          await deferredPrompt.userChoice;
+          deferredPrompt = null;
+          banner.style.display = 'none';
+        });
+      }
+
+      window.addEventListener('appinstalled', () => {
+        banner.style.display = 'none';
+        localStorage.setItem(DISMISS_KEY, String(Date.now()));
+      });
+    }
+  })();
+
   // ── スクロールで要素をふわっと表示 ──
   const revealObserver = new IntersectionObserver(
     (entries) => {
