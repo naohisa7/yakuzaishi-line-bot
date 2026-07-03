@@ -302,6 +302,15 @@ label {
   box-shadow: 0 10px 20px rgba(47, 158, 143, 0.4);
 }
 
+.video-call-link {
+  background: var(--purple);
+  box-shadow: 0 6px 14px rgba(108, 92, 201, 0.35);
+}
+
+.video-call-link:hover {
+  box-shadow: 0 10px 20px rgba(108, 92, 201, 0.45);
+}
+
 .bubble.resolution-bubble {
   display: flex;
   flex-direction: column;

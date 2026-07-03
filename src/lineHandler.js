@@ -20,6 +20,7 @@ const {
 const { getSession: getWebSession } = require('./webSessionManager');
 const { sendToSession } = require('./wsManager');
 const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
+const { generateVideoCallLink } = require('./videoCallLink');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
 const PHARMACIST_PHONE = process.env.PHARMACIST_PHONE || '（電話番号未設定）';
@@ -44,18 +45,22 @@ function buildConsentPrompt() {
 }
 
 /**
- * 薬剤師への発信ボタン付きメッセージ
+ * 薬剤師への発信・ビデオ通話ボタン付きメッセージ
+ * @param {string|null} videoLink - 同じ会話で発行済みのビデオ通話リンク（あれば同じ部屋に誘導するボタンを追加）
  */
-function buildCallButtonMessage() {
+function buildCallButtonMessage(videoLink) {
+  const actions = [{ type: 'uri', label: '📞 薬剤師に電話する', uri: `tel:${PHARMACIST_PHONE_URI}` }];
+  if (videoLink) {
+    actions.push({ type: 'uri', label: '📹 ビデオ通話で相談する', uri: videoLink });
+  }
+
   return {
     type: 'template',
     altText: `お急ぎの場合はこちらにお電話ください：${PHARMACIST_PHONE}`,
     template: {
       type: 'buttons',
-      text: 'お急ぎの場合は、こちらから直接お電話いただけます',
-      actions: [
-        { type: 'uri', label: '📞 薬剤師に電話する', uri: `tel:${PHARMACIST_PHONE_URI}` },
-      ],
+      text: 'お急ぎの場合は、こちらから直接お電話・ビデオ通話でご相談いただけます',
+      actions,
     },
   };
 }
@@ -123,10 +128,11 @@ async function getReplyTargetName(lineClient, target) {
 /**
  * 「解決しなかった」が押されたことを薬剤師に即座に通知
  */
-async function notifyUnresolved(lineClient, userId) {
+async function notifyUnresolved(lineClient, userId, videoLink) {
   if (!PHARMACIST_LINE_USER_ID) return;
 
   const patientName = await getPatientName(lineClient, userId);
+  const videoLine = videoLink ? `\n📹 ビデオ通話で参加する場合：\n${videoLink}` : '';
 
   await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
     {
@@ -135,7 +141,7 @@ async function notifyUnresolved(lineClient, userId) {
 ━━━━━━━━━━━━━━
 👤 ${patientName}
 ━━━━━━━━━━━━━━
-詳しい理由は追ってお伝えします。お急ぎであればこちらから先にチャットできます。`,
+詳しい理由は追ってお伝えします。お急ぎであればこちらから先にチャットできます。${videoLine}`,
     },
     buildReplyButtonMessage(userId),
   ]);
@@ -290,6 +296,7 @@ async function handleSpecialCommands(text, userId) {
 ・「介護者登録」→ 介護者と連携するための番号を発行
 ・「お薬手帳を見る」→ 確認済みのお薬一覧を表示
 ・「お薬手帳から削除:薬品名」→ 一覧から削除
+・「ビデオ通話」→ 担当薬剤師とビデオ通話で相談
 
 🚨 緊急の場合
 症状が重い場合はすぐに119番へ`,
@@ -316,8 +323,9 @@ async function fetchImageBase64(lineClient, messageId) {
 /**
  * 薬剤師への通知メッセージを生成
  */
-async function buildEscalationMessage(lineClient, userId, userMessage) {
+async function buildEscalationMessage(lineClient, userId, userMessage, videoLink) {
   const patientName = await getPatientName(lineClient, userId);
+  const videoLine = videoLink ? `\n📹 ビデオ通話で参加する場合：\n${videoLink}` : '';
 
   return [
     {
@@ -329,7 +337,7 @@ async function buildEscalationMessage(lineClient, userId, userMessage) {
 💬 相談内容：
 ${userMessage}
 ━━━━━━━━━━━━━━
-⚠️ チャットボットでは対応が難しい内容です。`,
+⚠️ チャットボットでは対応が難しい内容です。${videoLine}`,
     },
     buildReplyButtonMessage(userId),
   ];
@@ -377,6 +385,20 @@ async function handleEvent(event, lineClient) {
         return lineClient.replyMessage(event.replyToken, {
           type: 'text',
           text: `🔴 ${replyPatientName}さんへの返信モードを終了しました。`,
+        });
+      }
+
+      if (trimmedAdminMessage === 'ビデオ通話') {
+        const videoLink = generateVideoCallLink();
+        const videoText = `📹 担当薬剤師からビデオ通話のご案内です\n下記のリンクをタップして参加してください。\n${videoLink}`;
+        if (replyTarget.startsWith('web:')) {
+          await sendToSession(replyTarget.slice(4), { text: videoText });
+        } else {
+          await lineClient.pushMessage(replyTarget, { type: 'text', text: videoText });
+        }
+        return lineClient.replyMessage(event.replyToken, {
+          type: 'text',
+          text: `📹 ${replyPatientName}さんにビデオ通話リンクを送信しました。\nあなたも参加する場合はこちら：\n${videoLink}\n\n🟢 返信モード継続中（終了するときは「終了」と送信）`,
         });
       }
 
@@ -614,15 +636,37 @@ async function handleEvent(event, lineClient) {
       });
     }
 
+    if (trimmedMessage === 'ビデオ通話') {
+      const videoLink = generateVideoCallLink();
+      if (PHARMACIST_LINE_USER_ID) {
+        const patientName = await getPatientName(lineClient, userId);
+        await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
+          {
+            type: 'text',
+            text: `📹【ビデオ通話希望】${patientName}さんがビデオ通話を希望しています
+━━━━━━━━━━━━━━
+参加はこちら：
+${videoLink}`,
+          },
+          buildReplyButtonMessage(userId),
+        ]);
+      }
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `📹 担当薬剤師にビデオ通話をご案内しました。\n下記のリンクから参加してお待ちください：\n${videoLink}`,
+      });
+    }
+
     if (trimmedMessage === '解決しなかった') {
       markAwaitingFeedback(userId);
-      await notifyUnresolved(lineClient, userId);
+      const videoLink = generateVideoCallLink();
+      await notifyUnresolved(lineClient, userId, videoLink);
       return lineClient.replyMessage(event.replyToken, [
         {
           type: 'text',
           text: '申し訳ありません。今後の改善のため、どのような点が分かりにくかった・不十分だったか教えていただけますか？',
         },
-        buildCallButtonMessage(),
+        buildCallButtonMessage(videoLink),
       ]);
     }
 
@@ -666,10 +710,11 @@ async function handleEvent(event, lineClient) {
     }
 
     // 7. 患者さんへ返信
-    // 対応困難なケースは電話ボタンを、それ以外は解決確認のクイックリプライを添える
+    // 対応困難なケースは電話・ビデオ通話ボタンを、それ以外は解決確認のクイックリプライを添える
     let replyMessages;
+    const escalationVideoLink = needsEscalation ? generateVideoCallLink() : null;
     if (needsEscalation) {
-      replyMessages = [{ type: 'text', text: message }, buildCallButtonMessage()];
+      replyMessages = [{ type: 'text', text: message }, buildCallButtonMessage(escalationVideoLink)];
     } else {
       replyMessages = [withSolvedQuickReply({ type: 'text', text: message })];
     }
@@ -680,7 +725,8 @@ async function handleEvent(event, lineClient) {
       const escalationMsg = await buildEscalationMessage(
         lineClient,
         userId,
-        isImage ? '（お薬・お薬手帳の写真が送信されました）' : userMessage
+        isImage ? '（お薬・お薬手帳の写真が送信されました）' : userMessage,
+        escalationVideoLink
       );
       await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, escalationMsg);
       console.log(`[ESCALATE] userId: ${userId} の相談を薬剤師に通知しました`);
@@ -700,7 +746,7 @@ async function handleEvent(event, lineClient) {
     // エラー時は患者さんに丁寧にお断りを返す
     await lineClient.replyMessage(event.replyToken, [
       { type: 'text', text: '申し訳ありません。現在システムの調子が良くありません。' },
-      buildCallButtonMessage(),
+      buildCallButtonMessage(generateVideoCallLink()),
     ]);
   }
 }

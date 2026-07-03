@@ -23,6 +23,7 @@ const { registerSocket, unregisterSocket, popPendingMessages } = require('./wsMa
 const { getProfile, getArticles, getArticle } = require('./contentManager');
 const { recordFeedback } = require('./feedbackLogManager');
 const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
+const { generateVideoCallLink } = require('./videoCallLink');
 
 // ────────────────────────────────────
 // 環境変数チェック
@@ -249,10 +250,13 @@ app.post('/api/chat', requireWebSession, upload.single('image'), async (req, res
       await addMedication(`web:${sessionId}`, drugName);
     }
 
+    const videoLink = needsEscalation ? generateVideoCallLink() : undefined;
+
     res.json({
       reply: replyText,
       needsEscalation,
       phone: needsEscalation ? PHARMACIST_PHONE : undefined,
+      videoLink,
     });
 
     if (needsEscalation && PHARMACIST_LINE_USER_ID) {
@@ -267,7 +271,9 @@ app.post('/api/chat', requireWebSession, upload.single('image'), async (req, res
 💬 相談内容：
 ${message || '（画像が送信されました）'}
 ━━━━━━━━━━━━━━
-⚠️ チャットボットでは対応が難しい内容です。`,
+⚠️ チャットボットでは対応が難しい内容です。
+📹 ビデオ通話で参加する場合：
+${videoLink}`,
         },
         buildWebReplyButtonMessage(sessionId),
       ]);
@@ -354,6 +360,31 @@ app.post('/api/medications/delete', requireWebSession, async (req, res) => {
   } catch (err) {
     console.error('お薬手帳削除エラー:', err);
     res.status(500).json({ ok: false });
+  }
+});
+
+app.post('/api/video-call', requireWebSession, async (req, res) => {
+  try {
+    const videoLink = generateVideoCallLink();
+    const patientName = req.webSession.patientName || '患者さん（ホームページ）';
+
+    if (PHARMACIST_LINE_USER_ID) {
+      await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
+        {
+          type: 'text',
+          text: `📹【ビデオ通話希望・ホームページより】${patientName}さんがビデオ通話を希望しています
+━━━━━━━━━━━━━━
+参加はこちら：
+${videoLink}`,
+        },
+        buildWebReplyButtonMessage(req.webSessionId),
+      ]);
+    }
+
+    res.json({ videoLink });
+  } catch (err) {
+    console.error('ビデオ通話リンク発行エラー:', err);
+    res.status(500).json({ error: 'ビデオ通話を開始できませんでした。しばらくしてから再度お試しください。' });
   }
 });
 

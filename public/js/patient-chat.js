@@ -87,12 +87,12 @@
     return div;
   }
 
-  function addCallBubble(phone) {
+  function addCallBubble(phone, videoLink) {
     const div = document.createElement('div');
     div.className = 'bubble assistant call-bubble';
 
     const p = document.createElement('p');
-    p.textContent = 'お急ぎの場合は、担当薬剤師に直接お電話いただくこともできます。';
+    p.textContent = 'お急ぎの場合は、担当薬剤師に直接お電話・ビデオ通話でご相談いただくこともできます。';
     div.appendChild(p);
 
     const link = document.createElement('a');
@@ -100,6 +100,36 @@
     link.href = 'tel:' + phone.replace(/[^0-9+]/g, '');
     link.textContent = '📞 ' + phone + ' に電話する';
     div.appendChild(link);
+
+    if (videoLink) {
+      const videoBtn = document.createElement('a');
+      videoBtn.className = 'call-link video-call-link';
+      videoBtn.href = videoLink;
+      videoBtn.target = '_blank';
+      videoBtn.rel = 'noopener noreferrer';
+      videoBtn.textContent = '📹 ビデオ通話で相談する';
+      div.appendChild(videoBtn);
+    }
+
+    chatLog.appendChild(div);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  function addVideoCallBubble(videoLink) {
+    const div = document.createElement('div');
+    div.className = 'bubble assistant call-bubble';
+
+    const p = document.createElement('p');
+    p.textContent = '担当薬剤師にビデオ通話をご案内しました。下記のリンクから参加してお待ちください。';
+    div.appendChild(p);
+
+    const videoBtn = document.createElement('a');
+    videoBtn.className = 'call-link video-call-link';
+    videoBtn.href = videoLink;
+    videoBtn.target = '_blank';
+    videoBtn.rel = 'noopener noreferrer';
+    videoBtn.textContent = '📹 ビデオ通話に参加する';
+    div.appendChild(videoBtn);
 
     chatLog.appendChild(div);
     chatLog.scrollTop = chatLog.scrollHeight;
@@ -328,6 +358,26 @@
     imageFilename.textContent = file ? '添付：' + file.name : '';
   });
 
+  const videoCallButton = document.getElementById('video-call-button');
+  if (videoCallButton) {
+    videoCallButton.addEventListener('click', async () => {
+      videoCallButton.disabled = true;
+      try {
+        const res = await fetch('/api/video-call', { method: 'POST' });
+        const data = await res.json();
+        if (data.videoLink) {
+          addVideoCallBubble(data.videoLink);
+        } else {
+          addBubble('assistant', data.error || 'ビデオ通話を開始できませんでした。しばらくしてから再度お試しください。');
+        }
+      } catch (err) {
+        addBubble('assistant', '通信エラーが発生しました。しばらくしてから再度お試しください。');
+      } finally {
+        videoCallButton.disabled = false;
+      }
+    });
+  }
+
   const sendButton = document.getElementById('send-button');
   sendButton.addEventListener('click', sendMessage);
 
@@ -393,7 +443,7 @@
         addBubble('assistant', data.reply);
       }
       if (data.needsEscalation && data.phone) {
-        addCallBubble(data.phone);
+        addCallBubble(data.phone, data.videoLink);
       } else if (data.reply) {
         // すぐには聞かず、一定時間これ以上メッセージが来なければ
         // 会話が一段落したとみなして「解決したか」を確認する
