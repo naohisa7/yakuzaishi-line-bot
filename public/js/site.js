@@ -1,6 +1,13 @@
 (function () {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  // ── PWA用サービスワーカー登録 ──
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
+  }
+
   // ── スクロールで要素をふわっと表示 ──
   const revealObserver = new IntersectionObserver(
     (entries) => {
