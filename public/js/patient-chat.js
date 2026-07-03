@@ -186,14 +186,50 @@
     connectWebSocket();
   }
 
+  let ws = null;
+  let reconnectAttempts = 0;
+  let reconnectTimer = null;
+
   function connectWebSocket() {
+    clearTimeout(reconnectTimer);
+
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(protocol + '//' + location.host + '/ws?session=' + sessionId);
+    ws = new WebSocket(protocol + '//' + location.host + '/ws?session=' + sessionId);
+
+    ws.onopen = () => {
+      reconnectAttempts = 0;
+    };
+
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       addBubble('pharmacist', data.text);
     };
+
+    // スマホの電波切れや画面ロックなどで接続が切れても、薬剤師からの
+    // 返信を受け取れなくならないよう、間隔を広げながら自動で再接続する
+    ws.onclose = () => {
+      scheduleReconnect();
+    };
+
+    ws.onerror = () => {
+      ws.close();
+    };
   }
+
+  function scheduleReconnect() {
+    clearTimeout(reconnectTimer);
+    const delay = Math.min(30000, 1000 * 2 ** reconnectAttempts);
+    reconnectAttempts++;
+    reconnectTimer = setTimeout(connectWebSocket, delay);
+  }
+
+  // アプリをバックグラウンドから復帰した際にも、接続が切れていれば
+  // すぐに再接続を試みる
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && ws && ws.readyState !== WebSocket.OPEN) {
+      connectWebSocket();
+    }
+  });
 
   document.getElementById('verify-button').addEventListener('click', async () => {
     const name = document.getElementById('name-input').value.trim();

@@ -427,13 +427,36 @@ wss.on('connection', async (ws, req) => {
     return;
   }
 
+  ws.isAlive = true;
+  ws.on('pong', () => {
+    ws.isAlive = true;
+  });
+
   registerSocket(sessionId, ws);
 
   const pending = await popPendingMessages(sessionId);
   pending.forEach((msg) => ws.send(JSON.stringify(msg)));
 
   ws.on('close', () => unregisterSocket(sessionId, ws));
+  ws.on('error', () => {}); // 予期しないエラーでプロセスが落ちないようにする
 });
+
+// スマホの画面ロックや電波切れなどで「見た目上は接続中だが実際には
+// 応答しない」ソケットを定期的に検出し、切断扱いにして保留キューへの
+// フォールバックが正しく働くようにする
+const WS_HEARTBEAT_INTERVAL_MS = 30000;
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      ws.terminate();
+      return;
+    }
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, WS_HEARTBEAT_INTERVAL_MS);
+
+wss.on('close', () => clearInterval(heartbeatInterval));
 
 server.listen(PORT, () => {
   console.log(`

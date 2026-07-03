@@ -193,6 +193,8 @@ label {
   font-size: 15px;
   line-height: 1.6;
   white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .bubble.user {

@@ -25,8 +25,14 @@ function unregisterSocket(sessionId, ws) {
 async function sendToSession(sessionId, payload) {
   const ws = sockets.get(sessionId);
   if (ws && ws.readyState === ws.OPEN) {
-    ws.send(JSON.stringify(payload));
-    return;
+    try {
+      ws.send(JSON.stringify(payload));
+      return;
+    } catch (err) {
+      // 接続が生きているように見えても実際には切れている場合があるため、
+      // 送信に失敗したら保留キューに回して次回接続時に届ける
+      console.error(`[wsManager] sessionId: ${sessionId} への送信に失敗しました。保留キューに追加します。`, err.message);
+    }
   }
 
   await redis.rpush(pendingKey(sessionId), JSON.stringify(payload));
