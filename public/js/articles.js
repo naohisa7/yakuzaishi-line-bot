@@ -9,6 +9,7 @@
   }
 
   container.innerHTML = '';
+  const colors = ['c-teal', 'c-amber', 'c-purple', 'c-rose', 'c-sky'];
   data.articles.forEach((a, i) => {
     const date = new Date(a.createdAt).toLocaleDateString('ja-JP');
     const card = document.createElement('a');
@@ -16,21 +17,28 @@
     card.className = `card article-card tilt-card reveal-on-scroll ${direction}`;
     card.href = '/articles/' + a.id;
 
-    const title = document.createElement('h3');
-    const icon = document.createElement('span');
-    icon.className = 'article-icon';
-    icon.textContent = '📄';
-    const titleText = document.createElement('span');
-    titleText.textContent = a.title;
-    title.appendChild(icon);
-    title.appendChild(titleText);
+    if (i === 0) {
+      const ribbon = document.createElement('span');
+      ribbon.className = 'ribbon';
+      ribbon.textContent = 'NEW';
+      card.appendChild(ribbon);
+    }
 
+    const icon = document.createElement('div');
+    icon.className = 'card-icon-circle sm ' + colors[i % colors.length];
+    icon.textContent = '📄';
+    card.appendChild(icon);
+
+    const textWrap = document.createElement('div');
+    const title = document.createElement('h3');
+    title.textContent = a.title;
     const dateEl = document.createElement('p');
     dateEl.className = 'article-date';
     dateEl.textContent = date;
+    textWrap.appendChild(title);
+    textWrap.appendChild(dateEl);
+    card.appendChild(textWrap);
 
-    card.appendChild(title);
-    card.appendChild(dateEl);
     container.appendChild(card);
 
     if (window.SiteAnim) {

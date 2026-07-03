@@ -7,15 +7,34 @@
 <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-<div class="header">
-  <h1>💊 かかりつけ薬剤師</h1>
-  <p id="header-sub">患者さま専用ページ</p>
+
+<nav class="top-nav">
+  <a href="/" class="nav-logo"><span class="nav-logo-icon">💊</span> かかりつけ薬剤師</a>
+  <div class="nav-links">
+    <a href="/profile">プロフィール</a>
+    <a href="/articles">お薬の記事</a>
+    <a href="/contact">仕事のご依頼</a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <span class="hero-deco deco-1" aria-hidden="true">💊</span>
+  <span class="hero-deco deco-4" aria-hidden="true">✚</span>
+  <span class="hero-deco deco-5" aria-hidden="true">🌿</span>
+  <h1 class="reveal">💊 かかりつけ薬剤師</h1>
+  <p class="reveal delay-1" id="header-sub">患者さま専用ページ</p>
+</div>
+<div class="page-wave">
+  <svg viewBox="0 0 500 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0,20 C150,45 350,-5 500,20 L500,40 L0,40 Z" fill="#F4F6F5"></path>
+  </svg>
 </div>
 
 <div class="container" id="app-container">
 
   <section id="login-section" style="display:none">
-    <div class="card">
+    <div class="card tilt-card reveal-on-scroll reveal-up">
+      <div class="card-icon-circle lg c-teal">🔑</div>
       <h3>認証コードを入力してください</h3>
       <div class="error" id="login-error" style="display:none"></div>
       <label for="name-input">お名前</label>
@@ -27,7 +46,7 @@
   </section>
 
   <section id="consent-section" style="display:none">
-    <div class="card">
+    <div class="card tilt-card reveal-on-scroll reveal-up">
       <h3>ご利用にあたって</h3>
       <div class="policy-text" id="policy-text"></div>
       <div class="consent-buttons">
@@ -52,6 +71,7 @@
 
 </div>
 
+<script src="/js/site.js"></script>
 <script src="/js/patient-chat.js"></script>
 </body>
 </html>
