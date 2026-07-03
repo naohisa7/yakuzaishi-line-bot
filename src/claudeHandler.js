@@ -41,6 +41,12 @@ const SYSTEM_PROMPT = `あなたは経験豊富な薬剤師のアシスタント
 
 - 撮り直しても判読できない、複数の薬剤が写っていて判別が困難、または患者さんが撮影が難しいと伝えてきた場合は、無理に断定・推測をせず「[ESCALATE]」を使い、担当薬剤師に確認してもらうよう伝えてください
 
+【お薬手帳への保存タグ（[SAVE_DRUG:薬品名]）の使い方】
+- 会話の中で実在する薬の商品名がはっきり確定した場合は、たとえ患者さんがテキストで直接その名前を伝えてきただけであっても、必ず回答の末尾に [SAVE_DRUG:薬品名] というタグを付けてください（写真から読み取った場合も同様です。複数ある場合は [SAVE_DRUG:薬品名A][SAVE_DRUG:薬品名B] のように複数付けられます）
+- このタグは患者さん向けの文章には表示されず、システムが自動的に「お薬手帳」に記録するために使われます
+- 一包化の裸錠のように薬剤名を断定できない場合や、打ち間違い・聞き間違いの可能性があり患者さんへの確認待ちの段階では、絶対にこのタグを使わないでください（確定していない薬を記録してしまうと危険です）
+- すでに「この患者さんが過去に確認済みのお薬」として伝えられている薬については、重複して付ける必要はありません
+
 【[ESCALATE]タグの使い方】
 以下の状況では、回答の末尾に必ず [ESCALATE] を付けてください：
 - 患者さんの具体的な症状に応じた個別の薬剤判断が必要な場合
@@ -65,21 +71,35 @@ const SYSTEM_PROMPT = `あなたは経験豊富な薬剤師のアシスタント
 /**
  * Claudeに問い合わせて回答を取得
  * @param {Array} history - 会話履歴
- * @returns {{ message: string, needsEscalation: boolean }}
+ * @param {{name: string}[]} knownMedications - この患者さんが過去に確認済みのお薬（お薬手帳）
+ * @returns {{ message: string, needsEscalation: boolean, savedDrugs: string[] }}
  */
-async function askClaude(history) {
+async function askClaude(history, knownMedications = []) {
+  const medsSection =
+    knownMedications.length > 0
+      ? `\n\n【この患者さんが過去に確認済みのお薬（お薬手帳）】\n${knownMedications
+          .map((m) => `・${m.name}`)
+          .join('\n')}\n上記は商品名まで確認済みのお薬です。会話の文脈からこれらのお薬について話していると判断できる場合は、再度写真や名前を尋ねずにそのまま活用してください。`
+      : '';
+
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 1000,
-    system: SYSTEM_PROMPT,
+    system: SYSTEM_PROMPT + medsSection,
     messages: history,
   });
 
   const fullMessage = response.content[0].text;
   const needsEscalation = fullMessage.includes('[ESCALATE]');
 
-  // 患者向けメッセージから[ESCALATE]タグを除去
-  let cleanMessage = fullMessage.replace('[ESCALATE]', '').trim();
+  // [SAVE_DRUG:薬品名] タグを抽出してから、患者向けメッセージから除去
+  const savedDrugs = [...fullMessage.matchAll(/\[SAVE_DRUG:\s*([^\]]+)\]/g)].map((m) => m[1].trim());
+
+  // 患者向けメッセージから[ESCALATE]・[SAVE_DRUG:...]タグを除去
+  let cleanMessage = fullMessage
+    .replace('[ESCALATE]', '')
+    .replace(/\[SAVE_DRUG:[^\]]+\]/g, '')
+    .trim();
 
   // エスカレーション時は、AIの文言に関わらず必ず「返信が遅れる場合がある」旨を明記する
   // （営業時間内・時間外を問わず、薬剤師の状況により返信に時間がかかることがあるため）
@@ -87,7 +107,7 @@ async function askClaude(history) {
     cleanMessage += '\n\n※薬剤師の状況により、ご返信までお時間をいただく場合がございます。あらかじめご了承ください。';
   }
 
-  return { message: cleanMessage, needsEscalation };
+  return { message: cleanMessage, needsEscalation, savedDrugs };
 }
 
 module.exports = { askClaude };

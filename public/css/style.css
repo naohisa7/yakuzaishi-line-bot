@@ -219,6 +219,33 @@ label {
   border: 1px solid #F0C989;
 }
 
+.bubble-text {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.tts-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.tts-button:hover {
+  background: rgba(0, 0, 0, 0.12);
+  transform: scale(1.05);
+}
+
 .bubble.call-bubble {
   display: flex;
   flex-direction: column;
@@ -1436,6 +1463,31 @@ a.article-card h3 {
   color: var(--muted);
   font-size: 12px;
   margin: 4px 0 0;
+}
+
+.medication-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.medication-card-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.medication-card .med-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.medication-card .med-info h3 {
+  margin: 0 0 2px;
+}
+
+.medication-card .med-delete {
+  align-self: flex-end;
 }
 
 textarea {

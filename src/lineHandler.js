@@ -19,6 +19,7 @@ const {
 } = require('./contentManager');
 const { getSession: getWebSession } = require('./webSessionManager');
 const { sendToSession } = require('./wsManager');
+const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
 const PHARMACIST_PHONE = process.env.PHARMACIST_PHONE || '（電話番号未設定）';
@@ -232,15 +233,45 @@ async function broadcastToPatients(lineClient, text) {
 }
 
 /**
- * 特殊コマンドの処理
- * @returns {object[]|null} コマンドへの返信メッセージ配列 or null（通常メッセージ）
+ * 保存済みのお薬手帳を整形して表示用メッセージにする
  */
-function handleSpecialCommands(text, userId) {
+function formatMedicationList(entries) {
+  if (entries.length === 0) {
+    return 'まだお薬手帳に記録がありません。写真やお薬の名前を送っていただくと、確認できたものから自動的に記録されます。';
+  }
+
+  const listText = entries
+    .map((entry, i) => {
+      const date = new Date(entry.recordedAt).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' });
+      return `${i + 1}. ${entry.name}（${date}確認）`;
+    })
+    .join('\n');
+
+  return `📋 お薬手帳（確認済みのお薬）\n━━━━━━━━━━━━━━\n${listText}\n\n削除する場合は「お薬手帳から削除:薬品名」と送信してください。`;
+}
+
+/**
+ * 特殊コマンドの処理
+ * @returns {Promise<object[]|null>} コマンドへの返信メッセージ配列 or null（通常メッセージ）
+ */
+async function handleSpecialCommands(text, userId) {
   const trimmed = text.trim();
 
   if (trimmed === 'リセット' || trimmed === 'reset') {
     clearHistory(userId);
     return [{ type: 'text', text: '会話履歴をリセットしました。新しいご相談をどうぞ😊' }];
+  }
+
+  if (trimmed === 'お薬手帳を見る') {
+    const entries = await getMedications(`line:${userId}`);
+    return [{ type: 'text', text: formatMedicationList(entries) }];
+  }
+
+  const medicationDeleteMatch = trimmed.match(/^お薬手帳から削除[:：]\s*(.+)$/);
+  if (medicationDeleteMatch) {
+    const name = medicationDeleteMatch[1].trim();
+    await removeMedication(`line:${userId}`, name);
+    return [{ type: 'text', text: `「${name}」をお薬手帳から削除しました。` }];
   }
 
   if (trimmed === 'ヘルプ' || trimmed === 'help') {
@@ -257,6 +288,8 @@ function handleSpecialCommands(text, userId) {
 ・「ヘルプ」→ このガイドを表示
 ・「家族登録」→ ご家族と連携するための番号を発行
 ・「介護者登録」→ 介護者と連携するための番号を発行
+・「お薬手帳を見る」→ 確認済みのお薬一覧を表示
+・「お薬手帳から削除:薬品名」→ 一覧から削除
 
 🚨 緊急の場合
 症状が重い場合はすぐに119番へ`,
@@ -550,7 +583,7 @@ async function handleEvent(event, lineClient) {
   // 画像以外（テキスト）の場合のみ、特殊コマンド・フィードバックボタンを処理
   if (!isImage) {
     // 1. 特殊コマンドチェック
-    const commandReply = handleSpecialCommands(userMessage, userId);
+    const commandReply = await handleSpecialCommands(userMessage, userId);
     if (commandReply) {
       return lineClient.replyMessage(event.replyToken, commandReply);
     }
@@ -620,11 +653,17 @@ async function handleEvent(event, lineClient) {
     addMessage(userId, 'user', userContent);
     const history = getHistory(userId);
 
-    // 5. Claudeに問い合わせ
-    const { message, needsEscalation } = await askClaude(history);
+    // 5. Claudeに問い合わせ（お薬手帳に記録済みの薬があれば文脈として渡す）
+    const knownMedications = await getMedications(`line:${userId}`);
+    const { message, needsEscalation, savedDrugs } = await askClaude(history, knownMedications);
 
     // 6. 会話履歴にアシスタントの返信を追加
     addMessage(userId, 'assistant', message);
+
+    // 6.5 確実に特定できた薬があればお薬手帳に記録
+    for (const drugName of savedDrugs) {
+      await addMedication(`line:${userId}`, drugName);
+    }
 
     // 7. 患者さんへ返信
     // 対応困難なケースは電話ボタンを、それ以外は解決確認のクイックリプライを添える

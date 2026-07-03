@@ -17,10 +17,59 @@
     section.style.display = 'block';
   }
 
+  let currentUtteranceButton = null;
+
+  function speak(text, button) {
+    if (!('speechSynthesis' in window)) return;
+
+    const resetButton = (btn) => {
+      if (btn) btn.textContent = '🔊';
+    };
+
+    const wasSpeaking = window.speechSynthesis.speaking;
+    const sameButton = currentUtteranceButton === button;
+    if (wasSpeaking) {
+      window.speechSynthesis.cancel();
+      resetButton(currentUtteranceButton);
+      currentUtteranceButton = null;
+      if (sameButton) return; // 同じボタンをもう一度押した場合は停止のみ
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'ja-JP';
+    utterance.onend = () => {
+      resetButton(button);
+      if (currentUtteranceButton === button) currentUtteranceButton = null;
+    };
+    utterance.onerror = () => {
+      resetButton(button);
+      if (currentUtteranceButton === button) currentUtteranceButton = null;
+    };
+
+    window.speechSynthesis.speak(utterance);
+    if (button) button.textContent = '⏸';
+    currentUtteranceButton = button;
+  }
+
   function addBubble(role, text) {
     const div = document.createElement('div');
     div.className = 'bubble ' + role;
-    div.textContent = text;
+
+    const textEl = document.createElement('div');
+    textEl.className = 'bubble-text';
+    textEl.textContent = text;
+    div.appendChild(textEl);
+
+    if ((role === 'assistant' || role === 'pharmacist') && 'speechSynthesis' in window) {
+      const ttsButton = document.createElement('button');
+      ttsButton.type = 'button';
+      ttsButton.className = 'tts-button';
+      ttsButton.setAttribute('aria-label', '読み上げ');
+      ttsButton.textContent = '🔊';
+      ttsButton.addEventListener('click', () => speak(text, ttsButton));
+      div.appendChild(ttsButton);
+    }
+
     chatLog.appendChild(div);
     chatLog.scrollTop = chatLog.scrollHeight;
   }

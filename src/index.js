@@ -22,6 +22,7 @@ const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { registerSocket, unregisterSocket, popPendingMessages } = require('./wsManager');
 const { getProfile, getArticles, getArticle } = require('./contentManager');
 const { recordFeedback } = require('./feedbackLogManager');
+const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
 
 // ────────────────────────────────────
 // 環境変数チェック
@@ -238,8 +239,15 @@ app.post('/api/chat', requireWebSession, upload.single('image'), async (req, res
     await touchSession(sessionId);
     const history = await getHistory(sessionId);
 
-    const { message: replyText, needsEscalation } = await askClaude(history);
+    // お薬手帳に記録済みの薬があれば文脈として渡す
+    const knownMedications = await getMedications(`web:${sessionId}`);
+    const { message: replyText, needsEscalation, savedDrugs } = await askClaude(history, knownMedications);
     await addMessage(sessionId, 'assistant', replyText);
+
+    // 確実に特定できた薬があればお薬手帳に記録
+    for (const drugName of savedDrugs) {
+      await addMedication(`web:${sessionId}`, drugName);
+    }
 
     res.json({
       reply: replyText,
@@ -316,6 +324,35 @@ ${feedback}`,
     res.json({ ok: true });
   } catch (err) {
     console.error('解決確認フィードバック送信エラー:', err);
+    res.status(500).json({ ok: false });
+  }
+});
+
+app.get('/medications', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/medications.html'));
+});
+
+app.get('/api/medications', requireWebSession, async (req, res) => {
+  try {
+    const medications = await getMedications(`web:${req.webSessionId}`);
+    res.json({ medications });
+  } catch (err) {
+    console.error('お薬手帳取得エラー:', err);
+    res.status(500).json({ error: 'お薬手帳を取得できませんでした。' });
+  }
+});
+
+app.post('/api/medications/delete', requireWebSession, async (req, res) => {
+  const name = (req.body.name || '').trim();
+  if (!name) {
+    return res.status(400).json({ error: '薬品名を指定してください。' });
+  }
+
+  try {
+    await removeMedication(`web:${req.webSessionId}`, name);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('お薬手帳削除エラー:', err);
     res.status(500).json({ ok: false });
   }
 });
