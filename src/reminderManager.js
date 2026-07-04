@@ -16,7 +16,17 @@ function reminderKey(patientKey) {
 
 async function getReminders(patientKey) {
   const raw = await redis.get(reminderKey(patientKey));
-  return raw ? JSON.parse(raw) : [];
+  if (!raw) return [];
+
+  const parsed = JSON.parse(raw);
+  if (Array.isArray(parsed)) return parsed;
+
+  // 旧形式（患者につき1件のみのオブジェクト）で保存されたデータを新形式に自動移行する
+  const migrated = parsed && parsed.time
+    ? [{ id: crypto.randomUUID(), time: parsed.time, message: parsed.message || '', lastSentDate: parsed.lastSentDate || null }]
+    : [];
+  await redis.set(reminderKey(patientKey), JSON.stringify(migrated));
+  return migrated;
 }
 
 async function addReminder(patientKey, time, message) {
