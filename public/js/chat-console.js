@@ -10,6 +10,9 @@
   const consoleInput = document.getElementById('console-input');
   const consoleSendButton = document.getElementById('console-send-button');
   const consoleRevokeButton = document.getElementById('console-revoke-button');
+  const broadcastTemplatesEl = document.getElementById('broadcast-templates');
+  const broadcastInput = document.getElementById('broadcast-input');
+  const broadcastSendButton = document.getElementById('broadcast-send-button');
 
   const POLL_INTERVAL_MS = 4000;
 
@@ -29,10 +32,55 @@
     if (data.authenticated) {
       showSection(dashboardSection);
       await loadPatients();
+      await loadBroadcastTemplates();
     } else {
       showSection(loginSection);
     }
   }
+
+  async function loadBroadcastTemplates() {
+    const res = await fetch('/api/admin/broadcast-templates');
+    const data = await res.json();
+    broadcastTemplatesEl.innerHTML = '';
+    (data.templates || []).forEach((tpl) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'resolution-btn resolution-yes';
+      btn.textContent = tpl.label;
+      btn.addEventListener('click', () => {
+        broadcastInput.value = tpl.text;
+      });
+      broadcastTemplatesEl.appendChild(btn);
+    });
+  }
+
+  broadcastSendButton.addEventListener('click', async () => {
+    const text = broadcastInput.value.trim();
+    if (!text) return;
+
+    const confirmed = window.confirm('全ての患者さんに、下記の内容を一斉送信します。よろしいですか？\n\n' + text);
+    if (!confirmed) return;
+
+    broadcastSendButton.disabled = true;
+    try {
+      const res = await fetch('/api/admin/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        window.alert(`送信しました（LINE: ${data.lineSent}名 / ホームページ: ${data.webSent}名）`);
+        broadcastInput.value = '';
+      } else {
+        window.alert(data.error || '送信できませんでした。');
+      }
+    } catch (err) {
+      window.alert('通信エラーが発生しました。');
+    } finally {
+      broadcastSendButton.disabled = false;
+    }
+  });
 
   document.getElementById('login-button').addEventListener('click', async () => {
     const password = document.getElementById('password-input').value.trim();
@@ -59,6 +107,7 @@
 
     showSection(dashboardSection);
     await loadPatients();
+    await loadBroadcastTemplates();
   });
 
   async function loadPatients() {

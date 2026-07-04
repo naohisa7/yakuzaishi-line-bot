@@ -51,6 +51,13 @@
   </section>
 
   <section id="dashboard-section" style="display:none">
+    <div class="card" id="broadcast-card" style="margin-bottom:20px;">
+      <h3>📢 一斉送信</h3>
+      <div id="broadcast-templates" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"></div>
+      <textarea id="broadcast-input" rows="3" placeholder="全ての患者さんに送る内容を入力"></textarea>
+      <button class="btn" id="broadcast-send-button">全員に送信する</button>
+    </div>
+
     <div class="console-layout">
       <div class="console-sidebar" id="patient-list">読み込み中...</div>
       <div class="console-chat">

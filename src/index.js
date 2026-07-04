@@ -19,6 +19,7 @@ const { createSession, getSession, markConsented, touchSession, listSessionIds, 
 const { addMessage, getHistory } = require('./webConversationManager');
 const { getHistory: getLineHistory, addMessage: addLineMessage } = require('./conversationManager');
 const { getAuthorizedUsers, revoke: revokeAuthorization } = require('./authManager');
+const BROADCAST_TEMPLATES = require('./broadcastTemplates');
 const { enhanceImageToBase64 } = require('./imageEnhancer');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { registerSocket, unregisterSocket, popPendingMessages, sendToSession } = require('./wsManager');
@@ -634,6 +635,42 @@ app.post('/api/admin/patients/:id/messages', requireAdminSession, async (req, re
   } catch (err) {
     console.error('チャットコンソール送信エラー:', err);
     res.status(500).json({ error: '送信できませんでした。' });
+  }
+});
+
+app.get('/api/admin/broadcast-templates', requireAdminSession, (req, res) => {
+  res.json({ templates: BROADCAST_TEMPLATES });
+});
+
+app.post('/api/admin/broadcast', requireAdminSession, async (req, res) => {
+  const text = (req.body.text || '').trim();
+  if (!text) return res.status(400).json({ error: '本文を入力してください。' });
+
+  try {
+    const lineIds = (await getAuthorizedUsers()).filter((id) => id !== PHARMACIST_LINE_USER_ID);
+    if (lineIds.length > 0) {
+      await lineClient.multicast(lineIds, { type: 'text', text });
+      lineIds.forEach((id) => addLineMessage(id, 'assistant', text));
+    }
+
+    const webIds = await listSessionIds();
+    let webSent = 0;
+    for (const id of webIds) {
+      const session = await getSession(id);
+      if (!session) {
+        await removeSessionId(id); // 期限切れセッションを掃除
+        continue;
+      }
+      if (!session.consented) continue;
+      await sendToSession(id, { text });
+      await addMessage(id, 'assistant', text);
+      webSent++;
+    }
+
+    res.json({ ok: true, lineSent: lineIds.length, webSent });
+  } catch (err) {
+    console.error('一斉送信エラー（コンソール）:', err);
+    res.status(500).json({ error: '一斉送信できませんでした。' });
   }
 });
 
