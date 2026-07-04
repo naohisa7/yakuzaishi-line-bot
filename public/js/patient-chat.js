@@ -21,6 +21,35 @@
   let speechGeneration = 0;
   const PARAGRAPH_PAUSE_MS = 450;
 
+  // ブラウザ内蔵の機械的な声ではなく、できるだけ自然な日本語音声を選んで使う
+  let cachedVoices = [];
+  function refreshVoiceCache() {
+    cachedVoices = window.speechSynthesis.getVoices();
+  }
+  if ('speechSynthesis' in window) {
+    refreshVoiceCache();
+    window.speechSynthesis.addEventListener('voiceschanged', refreshVoiceCache);
+  }
+
+  function getBestJapaneseVoice() {
+    const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
+    const jaVoices = voices.filter((v) => v.lang && v.lang.toLowerCase().startsWith('ja'));
+    if (jaVoices.length === 0) return null;
+
+    const preferredKeywords = ['google', 'siri', 'enhanced', 'premium', 'neural', 'natural', 'wavenet'];
+    const scored = jaVoices.map((voice) => {
+      const name = voice.name.toLowerCase();
+      let score = 0;
+      if (preferredKeywords.some((k) => name.includes(k))) score += 2;
+      if (name.includes('compact')) score -= 2; // 機械的になりがちな簡易音声は後回し
+      if (!voice.localService) score += 1; // ネットワーク経由の音声は高品質なことが多い
+      return { voice, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored[0].voice;
+  }
+
   // 絵文字をそのまま読み上げると「にっこり笑う顔」のように読まれて不自然なため、
   // 読み上げ用のテキストからだけ取り除く（画面上の表示はそのまま絵文字ありで残す）
   function stripEmojiForSpeech(text) {
@@ -74,6 +103,14 @@
 
       const utterance = new SpeechSynthesisUtterance(segments[index]);
       utterance.lang = 'ja-JP';
+      const bestVoice = getBestJapaneseVoice();
+      if (bestVoice) {
+        try {
+          utterance.voice = bestVoice;
+        } catch (_) {
+          // 音声の指定に失敗しても、ブラウザの既定音声で読み上げを続ける
+        }
+      }
       utterance.onend = () => {
         if (myGeneration !== speechGeneration) return;
         if (index < segments.length - 1) {
