@@ -1,6 +1,11 @@
 (function () {
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  // ── フッターの著作権表示に現在の年を自動反映する ──
+  document.querySelectorAll('.footer-note[data-copyright]').forEach((el) => {
+    el.textContent = `© ${new Date().getFullYear()} かかりつけ薬剤師`;
+  });
+
   // ── PWA用サービスワーカー登録 ──
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
