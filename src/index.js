@@ -581,9 +581,11 @@ app.get('/api/admin/patients', requireAdminSession, async (req, res) => {
     );
 
     const webIds = await listSessionIds();
+    console.log('[console debug] web_session_ids raw:', JSON.stringify(webIds));
     const webPatients = [];
     for (const id of webIds) {
       const session = await getSession(id);
+      console.log('[console debug] web session', id, ':', JSON.stringify(session));
       if (!session) {
         await removeSessionId(id); // 期限切れセッションを掃除
         continue;
