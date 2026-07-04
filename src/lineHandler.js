@@ -21,6 +21,7 @@ const { getSession: getWebSession } = require('./webSessionManager');
 const { sendToSession } = require('./wsManager');
 const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
 const { generateVideoCallLink } = require('./videoCallLink');
+const { setAdminPasscode } = require('./adminPasscodeManager');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
 const PHARMACIST_PHONE = process.env.PHARMACIST_PHONE || '（電話番号未設定）';
@@ -449,6 +450,16 @@ async function handleEvent(event, lineClient) {
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
         text: `認証コードを更新しました。\n新しいコード：${passcodeChangeMatch[1]}\n（ホームページも同じコードで認証されます）`,
+      });
+    }
+
+    // 「管理者パスワード変更:新しいパスワード」でホームページの記事管理ページ用パスワードを変更
+    const adminPasscodeChangeMatch = trimmedAdminMessage.match(/^管理者パスワード変更[:：]\s*(\S+)$/);
+    if (adminPasscodeChangeMatch) {
+      await setAdminPasscode(adminPasscodeChangeMatch[1]);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `記事管理ページ（ホームページの /admin ）用のパスワードを更新しました。\n新しいパスワード：${adminPasscodeChangeMatch[1]}`,
       });
     }
 

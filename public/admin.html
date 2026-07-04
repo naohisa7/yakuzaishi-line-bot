@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>記事管理 | かかりつけ薬剤師</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#2F9E8F">
+<link rel="icon" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="かかりつけ薬剤師">
+</head>
+<body>
+
+<nav class="top-nav">
+  <a href="/" class="nav-logo"><span class="nav-logo-icon">💊</span> かかりつけ薬剤師</a>
+  <div class="nav-links">
+    <a href="/profile">プロフィール</a>
+    <a href="/articles">お薬の記事</a>
+    <a href="/contact">仕事のご依頼</a>
+    <a href="/patient" class="nav-cta">患者様はこちら</a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <span class="hero-deco deco-1" aria-hidden="true">🔐</span>
+  <span class="hero-deco deco-4" aria-hidden="true">📝</span>
+  <h1 class="reveal">🔐 記事管理</h1>
+  <p class="reveal delay-1">お薬の記事の追加・編集・削除</p>
+</div>
+<div class="page-wave">
+  <svg viewBox="0 0 500 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0,20 C150,45 350,-5 500,20 L500,40 L0,40 Z" fill="#F4F6F5"></path>
+  </svg>
+</div>
+
+<div class="container" id="app-container">
+
+  <section id="login-section" style="display:none">
+    <div class="card">
+      <div class="card-icon-circle lg c-purple">🔑</div>
+      <h3>パスワードを入力してください</h3>
+      <div class="error" id="login-error" style="display:none"></div>
+      <label for="password-input">パスワード</label>
+      <input type="password" id="password-input" placeholder="LINEで設定したパスワード">
+      <button class="btn" id="login-button">ログイン</button>
+    </div>
+  </section>
+
+  <section id="dashboard-section" style="display:none">
+    <div class="card">
+      <h3 id="form-title">新しい記事を追加</h3>
+      <div class="error" id="form-error" style="display:none"></div>
+      <label for="title-input">タイトル</label>
+      <input type="text" id="title-input" placeholder="記事のタイトル">
+      <label for="body-input">本文</label>
+      <textarea id="body-input" rows="8" placeholder="記事の本文"></textarea>
+      <div style="display:flex; gap:10px;">
+        <button class="btn" id="save-button">保存する</button>
+        <button class="btn btn-secondary" id="cancel-edit-button" style="display:none;">キャンセル</button>
+      </div>
+    </div>
+
+    <div id="article-list">読み込み中...</div>
+  </section>
+
+</div>
+
+<div class="footer-note">© かかりつけ薬剤師</div>
+
+<script src="/js/site.js"></script>
+<script src="/js/admin.js"></script>
+</body>
+</html>

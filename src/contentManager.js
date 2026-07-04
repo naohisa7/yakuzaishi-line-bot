@@ -46,6 +46,15 @@ async function getArticle(id) {
   return raw ? JSON.parse(raw) : null;
 }
 
+async function updateArticle(id, title, body) {
+  const existing = await getArticle(id);
+  if (!existing) return null;
+
+  const updated = { ...existing, title, body, updatedAt: new Date().toISOString() };
+  await redis.set(articleKey(id), JSON.stringify(updated));
+  return updated;
+}
+
 async function findArticleByIdPrefix(prefix) {
   const articles = await getArticles();
   return articles.find((a) => a.id.startsWith(prefix));
@@ -62,6 +71,7 @@ module.exports = {
   addArticle,
   getArticles,
   getArticle,
+  updateArticle,
   findArticleByIdPrefix,
   deleteArticle,
 };

@@ -20,10 +20,12 @@ const { addMessage, getHistory } = require('./webConversationManager');
 const { enhanceImageToBase64 } = require('./imageEnhancer');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { registerSocket, unregisterSocket, popPendingMessages } = require('./wsManager');
-const { getProfile, getArticles, getArticle } = require('./contentManager');
+const { getProfile, getArticles, getArticle, addArticle, updateArticle, deleteArticle } = require('./contentManager');
 const { recordFeedback } = require('./feedbackLogManager');
 const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
 const { generateVideoCallLink } = require('./videoCallLink');
+const { getAdminPasscode } = require('./adminPasscodeManager');
+const { createAdminSession, isValidAdminSession } = require('./adminSessionManager');
 
 // ────────────────────────────────────
 // 環境変数チェック
@@ -433,6 +435,119 @@ app.get('/api/articles/:id', async (req, res) => {
   } catch (err) {
     console.error('記事取得エラー:', err);
     res.status(500).json({ error: '記事を取得できませんでした。' });
+  }
+});
+
+// ────────────────────────────────────
+// 記事管理ページ（薬剤師のみ・パスワードでログイン）
+// ────────────────────────────────────
+
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/admin.html'));
+});
+
+app.get('/api/admin/session-status', async (req, res) => {
+  const adminSessionId = req.signedCookies.admin_session;
+  const authenticated = await isValidAdminSession(adminSessionId);
+  res.json({ authenticated });
+});
+
+app.post('/api/admin/login', async (req, res) => {
+  const password = (req.body.password || '').trim();
+  const currentPasscode = await getAdminPasscode();
+
+  if (!currentPasscode || password !== currentPasscode) {
+    return res.json({ ok: false, message: 'パスワードが正しくありません。' });
+  }
+
+  const adminSessionId = await createAdminSession();
+  res.cookie('admin_session', adminSessionId, {
+    httpOnly: true,
+    signed: true,
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  });
+  res.json({ ok: true });
+});
+
+async function requireAdminSession(req, res, next) {
+  const adminSessionId = req.signedCookies.admin_session;
+  const authenticated = await isValidAdminSession(adminSessionId);
+
+  if (!authenticated) {
+    return res.status(401).json({ error: '管理者ログインが必要です。' });
+  }
+
+  next();
+}
+
+app.get('/api/admin/articles', requireAdminSession, async (req, res) => {
+  try {
+    const articles = await getArticles();
+    res.json({ articles });
+  } catch (err) {
+    console.error('記事一覧取得エラー（管理）:', err);
+    res.status(500).json({ error: '記事一覧を取得できませんでした。' });
+  }
+});
+
+app.get('/api/admin/articles/:id', requireAdminSession, async (req, res) => {
+  try {
+    const article = await getArticle(req.params.id);
+    if (!article) {
+      return res.status(404).json({ error: '記事が見つかりません。' });
+    }
+    res.json(article);
+  } catch (err) {
+    console.error('記事取得エラー（管理）:', err);
+    res.status(500).json({ error: '記事を取得できませんでした。' });
+  }
+});
+
+app.post('/api/admin/articles', requireAdminSession, async (req, res) => {
+  const title = (req.body.title || '').trim();
+  const body = (req.body.body || '').trim();
+
+  if (!title || !body) {
+    return res.status(400).json({ error: 'タイトルと本文を入力してください。' });
+  }
+
+  try {
+    const article = await addArticle(title, body);
+    res.json({ ok: true, article });
+  } catch (err) {
+    console.error('記事追加エラー（管理）:', err);
+    res.status(500).json({ error: '記事を追加できませんでした。' });
+  }
+});
+
+app.put('/api/admin/articles/:id', requireAdminSession, async (req, res) => {
+  const title = (req.body.title || '').trim();
+  const body = (req.body.body || '').trim();
+
+  if (!title || !body) {
+    return res.status(400).json({ error: 'タイトルと本文を入力してください。' });
+  }
+
+  try {
+    const updated = await updateArticle(req.params.id, title, body);
+    if (!updated) {
+      return res.status(404).json({ error: '記事が見つかりません。' });
+    }
+    res.json({ ok: true, article: updated });
+  } catch (err) {
+    console.error('記事更新エラー（管理）:', err);
+    res.status(500).json({ error: '記事を更新できませんでした。' });
+  }
+});
+
+app.delete('/api/admin/articles/:id', requireAdminSession, async (req, res) => {
+  try {
+    await deleteArticle(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('記事削除エラー（管理）:', err);
+    res.status(500).json({ error: '記事を削除できませんでした。' });
   }
 });
 
