@@ -26,7 +26,7 @@ const { registerSocket, unregisterSocket, popPendingMessages, sendToSession } = 
 const { getProfile, getPharmacistName, getArticles, getArticle, addArticle, updateArticle, deleteArticle } = require('./contentManager');
 const { recordFeedback } = require('./feedbackLogManager');
 const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
-const { getInterventions, addIntervention } = require('./interventionRecordManager');
+const { getInterventions, addIntervention, updateIntervention, removeIntervention } = require('./interventionRecordManager');
 const { getReminders, addReminder, removeReminder, listReminderPatientKeys, markSent } = require('./reminderManager');
 const { generateVideoCallLink } = require('./videoCallLink');
 const { getAdminPasscode } = require('./adminPasscodeManager');
@@ -708,6 +708,38 @@ app.post('/api/admin/patients/:id/interventions', requireAdminSession, async (re
   } catch (err) {
     console.error('対応記録追加エラー（コンソール）:', err);
     res.status(500).json({ error: '対応記録を保存できませんでした。' });
+  }
+});
+
+app.put('/api/admin/patients/:id/interventions/:recordId', requireAdminSession, async (req, res) => {
+  const target = req.params.id;
+  const type = (req.body.type || '').trim();
+  const note = (req.body.note || '').trim();
+  const validTypes = ['follow_up', 'remaining_med', 'adverse_event', 'visit', 'other'];
+  if (!validTypes.includes(type)) {
+    return res.status(400).json({ error: '対応の種類が正しくありません。' });
+  }
+
+  try {
+    const patientKey = target.startsWith('web:') ? target : `line:${target}`;
+    const updated = await updateIntervention(patientKey, req.params.recordId, type, note);
+    if (!updated) return res.status(404).json({ error: '対応記録が見つかりません。' });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('対応記録更新エラー（コンソール）:', err);
+    res.status(500).json({ error: '対応記録を更新できませんでした。' });
+  }
+});
+
+app.delete('/api/admin/patients/:id/interventions/:recordId', requireAdminSession, async (req, res) => {
+  try {
+    const target = req.params.id;
+    const patientKey = target.startsWith('web:') ? target : `line:${target}`;
+    await removeIntervention(patientKey, req.params.recordId);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('対応記録削除エラー（コンソール）:', err);
+    res.status(500).json({ error: '対応記録を削除できませんでした。' });
   }
 });
 

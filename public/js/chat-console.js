@@ -16,6 +16,7 @@
   const interventionType = document.getElementById('intervention-type');
   const interventionNote = document.getElementById('intervention-note');
   const interventionAddButton = document.getElementById('intervention-add-button');
+  const interventionCancelButton = document.getElementById('intervention-cancel-button');
   const interventionList = document.getElementById('intervention-list');
   const exportMonth = document.getElementById('export-month');
   const exportDownloadButton = document.getElementById('export-download-button');
@@ -209,6 +210,7 @@
     const patients = await (await fetch('/api/admin/patients')).json();
     renderPatientList(patients.patients || []);
 
+    resetInterventionForm();
     await refreshThread();
     await refreshInterventions();
     await refreshReminder();
@@ -301,6 +303,8 @@
     renderThread(data.messages || []);
   }
 
+  let editingInterventionId = null;
+
   function renderInterventions(records) {
     if (records.length === 0) {
       interventionList.innerHTML = '<p style="color:var(--muted); font-size:13px;">まだ記録がありません。</p>';
@@ -310,9 +314,12 @@
     interventionList.innerHTML = '';
     records.forEach((record) => {
       const row = document.createElement('div');
-      row.style.cssText = 'padding:8px 0; border-bottom:1px solid #EEE; font-size:14px;';
+      row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #EEE; font-size:14px;';
 
       const date = new Date(record.recordedAt).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' });
+      const textWrap = document.createElement('div');
+      textWrap.style.flex = '1';
+
       const label = document.createElement('div');
       label.style.fontWeight = 'bold';
       label.textContent = INTERVENTION_LABELS[record.type] || record.type;
@@ -321,10 +328,65 @@
       meta.style.cssText = 'color:var(--muted); font-size:12px;';
       meta.textContent = date + (record.note ? ' ・ ' + record.note : '');
 
-      row.appendChild(label);
-      row.appendChild(meta);
+      textWrap.appendChild(label);
+      textWrap.appendChild(meta);
+
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'resolution-btn resolution-yes';
+      editBtn.textContent = '編集';
+      editBtn.addEventListener('click', () => startEditIntervention(record));
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'resolution-btn resolution-no';
+      deleteBtn.textContent = '削除';
+      deleteBtn.addEventListener('click', () => deleteIntervention(record.id));
+
+      row.appendChild(textWrap);
+      row.appendChild(editBtn);
+      row.appendChild(deleteBtn);
       interventionList.appendChild(row);
     });
+  }
+
+  function startEditIntervention(record) {
+    editingInterventionId = record.id;
+    interventionType.value = record.type;
+    interventionNote.value = record.note || '';
+    interventionAddButton.textContent = '更新する';
+    interventionCancelButton.style.display = 'inline-block';
+  }
+
+  function resetInterventionForm() {
+    editingInterventionId = null;
+    interventionType.value = 'follow_up';
+    interventionNote.value = '';
+    interventionAddButton.textContent = '記録する';
+    interventionCancelButton.style.display = 'none';
+  }
+
+  interventionCancelButton.addEventListener('click', resetInterventionForm);
+
+  async function deleteIntervention(id) {
+    if (!selectedId) return;
+    if (!window.confirm('この対応記録を削除しますか？この操作は取り消せません。')) return;
+
+    try {
+      const res = await fetch(
+        '/api/admin/patients/' + encodeURIComponent(selectedId) + '/interventions/' + encodeURIComponent(id),
+        { method: 'DELETE' }
+      );
+      const data = await res.json();
+      if (data.ok) {
+        if (editingInterventionId === id) resetInterventionForm();
+        await refreshInterventions();
+      } else {
+        window.alert(data.error || '削除できませんでした。');
+      }
+    } catch (err) {
+      window.alert('通信エラーが発生しました。');
+    }
   }
 
   async function refreshInterventions() {
@@ -339,14 +401,19 @@
 
     interventionAddButton.disabled = true;
     try {
-      const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/interventions', {
-        method: 'POST',
+      const isEditing = !!editingInterventionId;
+      const url = isEditing
+        ? '/api/admin/patients/' + encodeURIComponent(selectedId) + '/interventions/' + encodeURIComponent(editingInterventionId)
+        : '/api/admin/patients/' + encodeURIComponent(selectedId) + '/interventions';
+
+      const res = await fetch(url, {
+        method: isEditing ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: interventionType.value, note: interventionNote.value.trim() }),
       });
       const data = await res.json();
       if (data.ok) {
-        interventionNote.value = '';
+        resetInterventionForm();
         await refreshInterventions();
       } else {
         window.alert(data.error || '記録できませんでした。');
