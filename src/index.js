@@ -344,6 +344,10 @@ app.get('/medications', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/medications.html'));
 });
 
+app.get('/guide', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/guide.html'));
+});
+
 app.get('/api/medications', requireWebSession, async (req, res) => {
   try {
     const medications = await getMedications(`web:${req.webSessionId}`);
@@ -562,6 +566,10 @@ app.delete('/api/admin/articles/:id', requireAdminSession, async (req, res) => {
 
 app.get('/console', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/chat-console.html'));
+});
+
+app.get('/host-guide', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/host-guide.html'));
 });
 
 app.get('/api/admin/patients', requireAdminSession, async (req, res) => {

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>薬剤師様用マニュアル | かかりつけ薬剤師</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#2F9E8F">
+<link rel="icon" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="かかりつけ薬剤師">
+<style>
+  .guide-toc { padding: 20px 24px; }
+  .guide-toc h3 { margin-top: 0; }
+  .guide-toc ol { margin: 0; padding-left: 22px; line-height: 2; }
+  .guide-toc a { color: var(--brand); font-weight: bold; text-decoration: none; }
+  .guide-toc a:hover { text-decoration: underline; }
+  .guide-section { scroll-margin-top: 90px; margin-bottom: 40px; }
+  .guide-section > h2 { display: flex; align-items: center; gap: 10px; font-size: 22px; margin-bottom: 18px; }
+  .guide-section > h3 { font-size: 17px; margin: 22px 0 10px; }
+  .step-list { display: flex; flex-direction: column; gap: 14px; }
+  .step-card { display: flex; align-items: flex-start; gap: 14px; padding: 16px; }
+  .step-card .card-icon-circle { margin-bottom: 0; }
+  .step-card .step-body h4 { margin: 0 0 4px; }
+  .step-card .step-body p { margin: 0; color: var(--text); font-size: 14px; line-height: 1.7; }
+  .command-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .command-table th, .command-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid #EEE; vertical-align: top; }
+  .command-table th { color: var(--muted); font-weight: bold; width: 42%; }
+  code.cmd { background: #F4F6F5; padding: 3px 8px; border-radius: 6px; font-size: 13px; color: #1F6F65; white-space: nowrap; }
+  .guide-note { background: #FFF7E6; border: 1px solid #F3D896; border-radius: 12px; padding: 14px 16px; font-size: 14px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <a href="/" class="nav-logo"><span class="nav-logo-icon">💊</span> かかりつけ薬剤師</a>
+  <div class="nav-links">
+    <a href="/profile">プロフィール</a>
+    <a href="/articles">お薬の記事</a>
+    <a href="/contact">仕事のご依頼</a>
+    <a href="/patient" class="nav-cta">患者様はこちら</a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <span class="hero-deco deco-1" aria-hidden="true">🛠️</span>
+  <span class="hero-deco deco-4" aria-hidden="true">💊</span>
+  <h1 class="reveal">🛠️ 薬剤師様用マニュアル</h1>
+  <p class="reveal delay-1">LINE・ホームページの運用方法をご案内します</p>
+</div>
+<div class="page-wave">
+  <svg viewBox="0 0 500 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0,20 C150,45 350,-5 500,20 L500,40 L0,40 Z" fill="#F4F6F5"></path>
+  </svg>
+</div>
+
+<div class="container" id="app-container">
+
+  <section id="login-section" style="display:none">
+    <div class="card">
+      <div class="card-icon-circle lg c-purple">🔑</div>
+      <h3>パスワードを入力してください</h3>
+      <div class="error" id="login-error" style="display:none"></div>
+      <label for="password-input">パスワード</label>
+      <input type="password" id="password-input" placeholder="/admin・/consoleと同じパスワード">
+      <button class="btn" id="login-button">ログイン</button>
+    </div>
+  </section>
+
+  <section id="guide-content" style="display:none">
+
+    <div class="card guide-toc tilt-card reveal-on-scroll reveal-up">
+      <h3>📋 目次</h3>
+      <ol>
+        <li><a href="#intro">はじめに（システム構成）</a></li>
+        <li><a href="#line-commands">LINEの設定コマンド一覧</a></li>
+        <li><a href="#line-patients">患者さん対応（LINE）</a></li>
+        <li><a href="#broadcast">一斉送信</a></li>
+        <li><a href="#admin-page">記事管理ページ（/admin）</a></li>
+        <li><a href="#console-page">患者チャットコンソール（/console）</a></li>
+        <li><a href="#billing">令和8年度改定と対応記録の使い方</a></li>
+        <li><a href="#troubleshooting">トラブルシューティング</a></li>
+      </ol>
+    </div>
+
+    <section id="intro" class="guide-section">
+      <h2>💡 はじめに（システム構成）</h2>
+      <div class="card reveal-on-scroll reveal-up">
+        <p>このシステムは、大きく3つの窓口で構成されています。</p>
+        <ul>
+          <li><strong>LINE公式アカウント</strong>：患者さんとの日常的なやり取り・各種設定コマンドの操作窓口</li>
+          <li><strong>ホームページ（患者さん向け）</strong>：<code class="cmd">/patient</code>（チャット）、<code class="cmd">/medications</code>（お薬手帳）など</li>
+          <li><strong>ホームページ（薬剤師様専用）</strong>：<code class="cmd">/admin</code>（記事管理）、<code class="cmd">/console</code>（患者チャットコンソール）</li>
+        </ul>
+        <p>薬剤師様専用ページのログインパスワードは共通で、LINEの「管理者パスワード変更:新しいパスワード」でいつでも変更できます。</p>
+      </div>
+    </section>
+
+    <section id="line-commands" class="guide-section">
+      <h2>📱 LINEの設定コマンド一覧</h2>
+      <div class="card reveal-on-scroll reveal-up">
+        <table class="command-table">
+          <tr><th>コマンド</th><td>効果</td></tr>
+          <tr><th><code class="cmd">認証コード変更:新しいコード</code></th><td>LINE・ホームページ共通の患者様用認証コードを変更</td></tr>
+          <tr><th><code class="cmd">管理者パスワード変更:新しいパスワード</code></th><td>/admin・/console のログインパスワードを変更</td></tr>
+          <tr><th><code class="cmd">薬剤師名変更:氏名</code></th><td>/medications ページに表示するかかりつけ薬剤師名を変更</td></tr>
+          <tr><th><code class="cmd">プロフィール編集:本文</code></th><td>/profile ページの自己紹介文を変更</td></tr>
+          <tr><th><code class="cmd">記事追加:タイトル（改行）本文</code></th><td>/articles に新しい記事を投稿</td></tr>
+          <tr><th><code class="cmd">記事一覧</code></th><td>投稿済み記事とIDを確認</td></tr>
+          <tr><th><code class="cmd">記事削除:ID</code></th><td>指定した記事を削除（IDは先頭数文字でも可）</td></tr>
+          <tr><th><code class="cmd">改善要望一覧</code></th><td>「解決しなかった」と回答された際の詳細を確認</td></tr>
+        </table>
+      </div>
+      <div class="guide-note">💡 記事の追加・編集・削除は、LINEコマンドの他に <a href="#admin-page">/admin ページ</a>からも行えます。</div>
+    </section>
+
+    <section id="line-patients" class="guide-section">
+      <h2>👥 患者さん対応（LINE）</h2>
+      <div class="step-list">
+        <div class="card step-card reveal-on-scroll reveal-left">
+          <div class="card-icon-circle c-teal">①</div>
+          <div class="step-body">
+            <h4><code class="cmd">患者一覧</code> と送信</h4>
+            <p>認証済みの患者さんが一覧（クイックリプライ）で表示されます。</p>
+          </div>
+        </div>
+        <div class="card step-card reveal-on-scroll reveal-left">
+          <div class="card-icon-circle c-amber">②</div>
+          <div class="step-body">
+            <h4>患者さんを選んで返信モードに入る</h4>
+            <p>一覧から患者さんを選ぶと「🟢 返信モード中」になり、以降送るメッセージはすべてその患者さんに届きます。</p>
+          </div>
+        </div>
+        <div class="card step-card reveal-on-scroll reveal-left">
+          <div class="card-icon-circle c-purple">③</div>
+          <div class="step-body">
+            <h4>ビデオ通話の案内</h4>
+            <p>返信モード中に <code class="cmd">ビデオ通話</code> と送ると、その患者さんへビデオ通話リンクを送信できます。</p>
+          </div>
+        </div>
+        <div class="card step-card reveal-on-scroll reveal-left">
+          <div class="card-icon-circle c-rose">④</div>
+          <div class="step-body">
+            <h4>返信モードの終了</h4>
+            <p><code class="cmd">終了</code> または <code class="cmd">キャンセル</code> と送ると返信モードを抜けます。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="broadcast" class="guide-section">
+      <h2>📢 一斉送信</h2>
+      <div class="card reveal-on-scroll reveal-up">
+        <p>LINE・ホームページ両方の患者さんに同時に送信されます。</p>
+        <ol style="padding-left:20px; line-height:2;">
+          <li><code class="cmd">一斉送信</code> と送信、または <code class="cmd">/console</code> の「📢 一斉送信」を開く</li>
+          <li>定型文を選ぶか、<code class="cmd">一斉送信：本文</code> の形式で自由文を送信</li>
+          <li>内容を確認し、「送信する」を選んで初めて実際に送信されます（誤送信防止のため、確認なしには送信されません）</li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="admin-page" class="guide-section">
+      <h2>📝 記事管理ページ（/admin）</h2>
+      <div class="card reveal-on-scroll reveal-up">
+        <p><a href="/admin">/admin</a> にログインすると、お薬の記事（/articles に表示される記事）を追加・編集・削除できます。タイトルと本文を入力して「保存する」を押すだけです。</p>
+      </div>
+    </section>
+
+    <section id="console-page" class="guide-section">
+      <h2>💬 患者チャットコンソール（/console）</h2>
+      <div class="card reveal-on-scroll reveal-up">
+        <p><a href="/console">/console</a> では、LINE・ホームページどちらの患者さんも1つの画面から選んでチャットできます。</p>
+        <ul>
+          <li><strong>患者一覧</strong>：左側にLINE（緑バッジ）・Web（水色バッジ）の患者さんがまとめて表示されます</li>
+          <li><strong>チャット</strong>：患者さんを選ぶとやり取りが表示され、返信を送信できます（4秒ごとに自動更新）</li>
+          <li><strong>認証解除</strong>：チャット画面右上の「🔒 認証解除」から、患者名を確認したうえで認証を取り消せます。次回は認証コードの入力からやり直しになります</li>
+          <li><strong>対応記録</strong>：下部の「📋 対応記録」から、フォローアップ・残薬調整などの対応をいつでも記録できます（詳しくは次項）</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="billing" class="guide-section">
+      <h2>💴 令和8年度改定と対応記録の使い方</h2>
+      <div class="card reveal-on-scroll reveal-up">
+        <p>令和8年度診療報酬改定で「かかりつけ薬剤師指導料」「かかりつけ薬剤師包括管理料」は廃止され、服薬管理指導料に統合されました。かわりに、電話等での個別フォローアップや残薬調整・有害事象防止に伴う処方変更など、<strong>実際に行った対応を記録しておくことが評価される仕組み</strong>になっています。</p>
+        <p><code class="cmd">/console</code> の「対応記録」機能を使うと、患者さんごとに次のような記録を残せます。</p>
+        <table class="command-table">
+          <tr><th>種類</th><td>用途の例</td></tr>
+          <tr><th>📞 フォローアップ（電話等）</th><td>かかりつけ薬剤師フォローアップ加算の記録に</td></tr>
+          <tr><th>💊 残薬調整</th><td>調剤時残薬調整加算の記録に</td></tr>
+          <tr><th>⚠️ 有害事象防止（処方変更）</th><td>薬学的有害事象等防止加算の記録に</td></tr>
+          <tr><th>🏠 訪問</th><td>かかりつけ薬剤師訪問加算の記録に</td></tr>
+        </table>
+        <div class="guide-note">⚠️ この記録機能はあくまで社内メモとしての算定サポートです。実際のレセプト請求要件は最新の告示・疑義解釈をご確認のうえご判断ください。</div>
+      </div>
+    </section>
+
+    <section id="troubleshooting" class="guide-section">
+      <h2>🔧 トラブルシューティング</h2>
+      <div class="step-list">
+        <div class="card reveal-on-scroll reveal-up">
+          <h4>Q. /console に患者さんが表示されません</h4>
+          <p>LINEの患者さんは「認証コード送信 → 同意する」まで、ホームページの患者さんは「認証コード入力 → プライバシーポリシーへの同意」まで完了している必要があります。</p>
+        </div>
+        <div class="card reveal-on-scroll reveal-up">
+          <h4>Q. パスワードを忘れました</h4>
+          <p>LINEから「管理者パスワード変更:新しいパスワード」と送信すれば、いつでも再設定できます。</p>
+        </div>
+        <div class="card reveal-on-scroll reveal-up">
+          <h4>Q. LINEの会話履歴が急に消えました</h4>
+          <p>LINE側の会話履歴はサーバーのメモリ上にのみ保持されているため、サーバーの再起動・再デプロイのタイミングで消えることがあります（ホームページ側の履歴は保持されます）。</p>
+        </div>
+      </div>
+    </section>
+
+  </section>
+
+</div>
+
+<footer class="site-footer">
+  <div class="footer-grid">
+    <a href="/" class="nav-logo footer-brand"><span class="nav-logo-icon">💊</span> かかりつけ薬剤師</a>
+    <div class="footer-links">
+      <a href="/profile">プロフィール</a>
+      <a href="/articles">お薬の記事</a>
+      <a href="/contact">仕事のご依頼</a>
+      <a href="/patient">患者様はこちら</a>
+    </div>
+  </div>
+  <div class="footer-note" data-copyright>© かかりつけ薬剤師</div>
+</footer>
+
+<script src="/js/site.js"></script>
+<script src="/js/host-guide.js"></script>
+</body>
+</html>

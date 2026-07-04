@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ご利用ガイド | かかりつけ薬剤師</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#2F9E8F">
+<link rel="icon" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="かかりつけ薬剤師">
+<style>
+  .guide-toc {
+    padding: 20px 24px;
+  }
+  .guide-toc h3 {
+    margin-top: 0;
+  }
+  .guide-toc ol {
+    margin: 0;
+    padding-left: 22px;
+    line-height: 2;
+  }
+  .guide-toc a {
+    color: var(--brand);
+    font-weight: bold;
+    text-decoration: none;
+  }
+  .guide-toc a:hover {
+    text-decoration: underline;
+  }
+  .guide-section {
+    scroll-margin-top: 90px;
+    margin-bottom: 40px;
+  }
+  .guide-section > h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 22px;
+    margin-bottom: 18px;
+  }
+  .step-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .step-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px;
+  }
+  .step-card .card-icon-circle {
+    margin-bottom: 0;
+  }
+  .step-card .step-body h4 {
+    margin: 0 0 4px;
+  }
+  .step-card .step-body p {
+    margin: 0;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .step-card .step-body .example {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 4px 10px;
+    background: #F4F6F5;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .guide-note {
+    background: #FFF7E6;
+    border: 1px solid #F3D896;
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 14px;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<nav class="top-nav">
+  <a href="/" class="nav-logo"><span class="nav-logo-icon">💊</span> かかりつけ薬剤師</a>
+  <div class="nav-links">
+    <a href="/profile">プロフィール</a>
+    <a href="/articles">お薬の記事</a>
+    <a href="/contact">仕事のご依頼</a>
+    <a href="/patient" class="nav-cta">患者様はこちら</a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <span class="hero-deco deco-1" aria-hidden="true">📖</span>
+  <span class="hero-deco deco-4" aria-hidden="true">💊</span>
+  <span class="hero-deco deco-5" aria-hidden="true">🌿</span>
+  <h1 class="reveal">📖 ご利用ガイド</h1>
+  <p class="reveal delay-1">LINE・ホームページの使い方をご案内します</p>
+</div>
+<div class="page-wave">
+  <svg viewBox="0 0 500 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0,20 C150,45 350,-5 500,20 L500,40 L0,40 Z" fill="#F4F6F5"></path>
+  </svg>
+</div>
+
+<div class="container">
+
+  <div class="card guide-toc tilt-card reveal-on-scroll reveal-up">
+    <h3>📋 目次</h3>
+    <ol>
+      <li><a href="#intro">はじめに</a></li>
+      <li><a href="#line-usage">LINEでの使い方</a></li>
+      <li><a href="#web-usage">ホームページでの使い方</a></li>
+      <li><a href="#faq">よくある質問</a></li>
+      <li><a href="#emergency">緊急時のご連絡先</a></li>
+    </ol>
+  </div>
+
+  <section id="intro" class="guide-section">
+    <h2>💡 はじめに</h2>
+    <div class="card reveal-on-scroll reveal-up">
+      <p>このサービスでは、LINEまたはホームページから、お薬についていつでも気軽にご相談いただけます。テキストだけでなく、お薬やお薬手帳の写真を送っていただくことも可能です。緊急性が高いと判断した場合は、担当薬剤師へ自動的に取り次ぎます。</p>
+      <p>LINE・ホームページのどちらか一方だけでもご利用いただけますし、両方使っていただいても構いません。</p>
+    </div>
+  </section>
+
+  <section id="line-usage" class="guide-section">
+    <h2>💬 LINEでの使い方</h2>
+    <div class="step-list">
+      <div class="card step-card reveal-on-scroll reveal-left">
+        <div class="card-icon-circle c-teal">①</div>
+        <div class="step-body">
+          <h4>友だち追加</h4>
+          <p>ホームページのQRコード、または「友だち追加」ボタンから公式LINE「かかりつけ相談窓口」を友だち追加してください。</p>
+        </div>
+      </div>
+      <div class="card step-card reveal-on-scroll reveal-left">
+        <div class="card-icon-circle c-amber">②</div>
+        <div class="step-body">
+          <h4>認証コードを送信</h4>
+          <p>担当薬剤師から伝えられた認証コードを、そのままメッセージとして送信してください。</p>
+          <span class="example">例：1234</span>
+        </div>
+      </div>
+      <div class="card step-card reveal-on-scroll reveal-left">
+        <div class="card-icon-circle c-purple">③</div>
+        <div class="step-body">
+          <h4>プライバシーポリシーに同意</h4>
+          <p>利用規約が表示されるので、内容をご確認のうえ「同意する」を選んでください。</p>
+        </div>
+      </div>
+      <div class="card step-card reveal-on-scroll reveal-left">
+        <div class="card-icon-circle c-rose">④</div>
+        <div class="step-body">
+          <h4>相談する</h4>
+          <p>あとは通常のLINEメッセージと同じように、お薬の相談を送るだけです。お薬やお薬手帳の写真を送っていただくこともできます。</p>
+        </div>
+      </div>
+      <div class="card step-card reveal-on-scroll reveal-left">
+        <div class="card-icon-circle c-sky">⑤</div>
+        <div class="step-body">
+          <h4>便利なコマンド</h4>
+          <p>「ヘルプ」と送るといつでも使い方の一覧を確認できます。主なコマンドは以下の通りです。</p>
+          <p>
+            <span class="example">リセット</span>　会話履歴を初期化<br>
+            <span class="example">お薬手帳を見る</span>　確認済みのお薬一覧を表示<br>
+            <span class="example">お薬手帳から削除:薬品名</span>　一覧から削除<br>
+            <span class="example">ビデオ通話</span>　担当薬剤師とビデオ通話<br>
+            <span class="example">家族登録</span>／<span class="example">介護者登録</span>　ご家族・介護者との連携番号を発行
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="guide-note">
+      🔊 <strong>音声入力・読み上げについて</strong>：LINEはお使いのスマートフォンのキーボードに搭載されている音声入力（マイクのマーク）がそのままご利用いただけます。特別な設定は不要です。
+    </div>
+  </section>
+
+  <section id="web-usage" class="guide-section">
+    <h2>🖥️ ホームページでの使い方</h2>
+    <div class="step-list">
+      <div class="card step-card reveal-on-scroll reveal-right">
+        <div class="card-icon-circle c-teal">①</div>
+        <div class="step-body">
+          <h4>患者様専用ページへログイン</h4>
+          <p><a href="/patient">「患者様はこちら」</a>から、お名前と担当薬剤師から伝えられた認証コードを入力してください。LINEと同じ認証コードです。</p>
+        </div>
+      </div>
+      <div class="card step-card reveal-on-scroll reveal-right">
+        <div class="card-icon-circle c-amber">②</div>
+        <div class="step-body">
+          <h4>チャットで相談</h4>
+          <p>画面下の入力欄からメッセージを送信、📷ボタンから写真を送信できます。回答の🔊ボタンを押すと読み上げてくれます。</p>
+        </div>
+      </div>
+      <div class="card step-card reveal-on-scroll reveal-right">
+        <div class="card-icon-circle c-purple">③</div>
+        <div class="step-body">
+          <h4>音声入力（Android）</h4>
+          <p>Androidのスマートフォンでは、入力欄の🎤ボタンをタップすると音声でそのまま入力できます。iPhoneではキーボード標準のマイクボタンをご利用ください。</p>
+        </div>
+      </div>
+      <div class="card step-card reveal-on-scroll reveal-right">
+        <div class="card-icon-circle c-rose">④</div>
+        <div class="step-body">
+          <h4>ビデオ通話・お薬手帳</h4>
+          <p>チャット画面上部の「📹 ビデオ通話で相談する」「📋 お薬手帳を見る」から、それぞれの機能をご利用いただけます。</p>
+        </div>
+      </div>
+      <div class="card step-card reveal-on-scroll reveal-right">
+        <div class="card-icon-circle c-sky">⑤</div>
+        <div class="step-body">
+          <h4>ホーム画面に追加（アプリのように使う）</h4>
+          <p>画面に表示される案内から「ホーム画面に追加」を行うと、アプリのようにワンタップで開けるようになります。</p>
+          <p style="margin-top:8px;">
+            <strong>iPhone：</strong>共有ボタン📤 →「ホーム画面に追加」<br>
+            <strong>Android：</strong>画面右上のメニュー → 「追加する」
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="faq" class="guide-section">
+    <h2>❓ よくある質問</h2>
+    <div class="step-list">
+      <div class="card reveal-on-scroll reveal-up">
+        <h4>Q. 認証コードが分かりません</h4>
+        <p>担当薬剤師にご確認ください。認証コードはLINE・ホームページ共通です。</p>
+      </div>
+      <div class="card reveal-on-scroll reveal-up">
+        <h4>Q. LINEアプリ内のブラウザから「ホーム画面に追加」ができません</h4>
+        <p>LINE内のブラウザでは追加できない場合があります。画面右上のメニューから「他のアプリで開く」を選び、Safari／Chromeで開き直してからお試しください。</p>
+      </div>
+      <div class="card reveal-on-scroll reveal-up">
+        <h4>Q. 返信が来るまでどのくらいかかりますか？</h4>
+        <p>担当薬剤師の状況により、ご返信までお時間をいただく場合がございます。緊急性が高い内容は自動的に取り次がれますが、すぐに対応できないこともある旨、あらかじめご了承ください。</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="emergency" class="guide-section">
+    <h2>🚨 緊急時のご連絡先</h2>
+    <div class="card reveal-on-scroll reveal-up">
+      <p>症状が重い場合や、命に関わる可能性がある場合は、本サービスの返信を待たずに、<strong>すぐに119番</strong>へご連絡ください。</p>
+    </div>
+  </section>
+
+</div>
+
+<footer class="site-footer">
+  <div class="footer-grid">
+    <a href="/" class="nav-logo footer-brand"><span class="nav-logo-icon">💊</span> かかりつけ薬剤師</a>
+    <div class="footer-links">
+      <a href="/profile">プロフィール</a>
+      <a href="/articles">お薬の記事</a>
+      <a href="/contact">仕事のご依頼</a>
+      <a href="/patient">患者様はこちら</a>
+    </div>
+  </div>
+  <div class="footer-note" data-copyright>© かかりつけ薬剤師</div>
+</footer>
+
+<script src="/js/site.js"></script>
+</body>
+</html>
