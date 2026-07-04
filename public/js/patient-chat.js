@@ -18,6 +18,8 @@
   }
 
   let currentUtteranceButton = null;
+  let speechGeneration = 0;
+  const PARAGRAPH_PAUSE_MS = 450;
 
   // 絵文字をそのまま読み上げると「にっこり笑う顔」のように読まれて不自然なため、
   // 読み上げ用のテキストからだけ取り除く（画面上の表示はそのまま絵文字ありで残す）
@@ -26,9 +28,15 @@
       .replace(/\p{Extended_Pictographic}(‍\p{Extended_Pictographic})*/gu, '')
       .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '')
       .replace(/️/g, '')
-      .replace(/[ \t]{2,}/g, ' ')
-      .replace(/\n{2,}/g, '\n')
-      .trim();
+      .replace(/[ \t]{2,}/g, ' ');
+  }
+
+  // 空行（段落の区切り）で分けて、間に少し間を置きながら読み上げる
+  function buildSpeechSegments(text) {
+    return text
+      .split(/\n\s*\n/)
+      .map((part) => stripEmojiForSpeech(part).replace(/\s*\n\s*/g, ' ').trim())
+      .filter((part) => part.length > 0);
   }
 
   function speak(text, button) {
@@ -38,29 +46,52 @@
       if (btn) btn.textContent = '🔊';
     };
 
-    const wasSpeaking = window.speechSynthesis.speaking;
+    const wasActive = currentUtteranceButton !== null;
     const sameButton = currentUtteranceButton === button;
-    if (wasSpeaking) {
+    if (wasActive) {
+      speechGeneration++; // 進行中のキューを打ち切る
       window.speechSynthesis.cancel();
       resetButton(currentUtteranceButton);
       currentUtteranceButton = null;
       if (sameButton) return; // 同じボタンをもう一度押した場合は停止のみ
     }
 
-    const utterance = new SpeechSynthesisUtterance(stripEmojiForSpeech(text));
-    utterance.lang = 'ja-JP';
-    utterance.onend = () => {
-      resetButton(button);
-      if (currentUtteranceButton === button) currentUtteranceButton = null;
-    };
-    utterance.onerror = () => {
-      resetButton(button);
-      if (currentUtteranceButton === button) currentUtteranceButton = null;
+    const segments = buildSpeechSegments(text);
+    if (segments.length === 0) return;
+
+    const myGeneration = ++speechGeneration;
+    currentUtteranceButton = button;
+    if (button) button.textContent = '⏸';
+
+    const speakSegment = (index) => {
+      if (myGeneration !== speechGeneration) return; // 別の読み上げに切り替わった
+
+      if (index >= segments.length) {
+        resetButton(button);
+        if (currentUtteranceButton === button) currentUtteranceButton = null;
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(segments[index]);
+      utterance.lang = 'ja-JP';
+      utterance.onend = () => {
+        if (myGeneration !== speechGeneration) return;
+        if (index < segments.length - 1) {
+          setTimeout(() => speakSegment(index + 1), PARAGRAPH_PAUSE_MS);
+        } else {
+          speakSegment(index + 1);
+        }
+      };
+      utterance.onerror = () => {
+        if (myGeneration !== speechGeneration) return;
+        resetButton(button);
+        if (currentUtteranceButton === button) currentUtteranceButton = null;
+      };
+
+      window.speechSynthesis.speak(utterance);
     };
 
-    window.speechSynthesis.speak(utterance);
-    if (button) button.textContent = '⏸';
-    currentUtteranceButton = button;
+    speakSegment(0);
   }
 
   function addBubble(role, text) {
