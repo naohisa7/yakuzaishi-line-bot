@@ -426,6 +426,61 @@ label {
   padding: 8px 12px 0;
 }
 
+.console-layout {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.console-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+}
+
+.patient-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.patient-list-item:hover,
+.patient-list-item.active {
+  background: #E6F4F2;
+}
+
+.channel-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.channel-badge.line {
+  background: #06C755;
+}
+
+.channel-badge.web {
+  background: var(--brand);
+}
+
+.console-chat {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 700px) {
+  .console-layout {
+    flex-direction: column;
+  }
+  .console-sidebar {
+    width: 100%;
+  }
+}
+
 .footer-note {
   text-align: center;
   color: var(--muted);

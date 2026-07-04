@@ -1,0 +1,177 @@
+(function () {
+  const loginSection = document.getElementById('login-section');
+  const dashboardSection = document.getElementById('dashboard-section');
+  const loginError = document.getElementById('login-error');
+  const patientListEl = document.getElementById('patient-list');
+  const consoleEmpty = document.getElementById('console-empty');
+  const consoleChatPanel = document.getElementById('console-chat-panel');
+  const consolePatientName = document.getElementById('console-patient-name');
+  const consoleLog = document.getElementById('console-log');
+  const consoleInput = document.getElementById('console-input');
+  const consoleSendButton = document.getElementById('console-send-button');
+
+  const POLL_INTERVAL_MS = 4000;
+
+  let selectedId = null;
+  let pollTimer = null;
+
+  function showSection(section) {
+    [loginSection, dashboardSection].forEach((s) => (s.style.display = 'none'));
+    section.style.display = 'block';
+  }
+
+  async function init() {
+    const res = await fetch('/api/admin/session-status');
+    const data = await res.json();
+
+    if (data.authenticated) {
+      showSection(dashboardSection);
+      await loadPatients();
+    } else {
+      showSection(loginSection);
+    }
+  }
+
+  document.getElementById('login-button').addEventListener('click', async () => {
+    const password = document.getElementById('password-input').value.trim();
+    loginError.style.display = 'none';
+
+    if (!password) {
+      loginError.textContent = 'パスワードを入力してください。';
+      loginError.style.display = 'block';
+      return;
+    }
+
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const data = await res.json();
+
+    if (!data.ok) {
+      loginError.textContent = data.message || 'ログインできませんでした。';
+      loginError.style.display = 'block';
+      return;
+    }
+
+    showSection(dashboardSection);
+    await loadPatients();
+  });
+
+  async function loadPatients() {
+    const res = await fetch('/api/admin/patients');
+    const data = await res.json();
+    renderPatientList(data.patients || []);
+  }
+
+  function renderPatientList(patients) {
+    if (patients.length === 0) {
+      patientListEl.innerHTML = '<div class="card">まだ患者さんがいません。</div>';
+      return;
+    }
+
+    patientListEl.innerHTML = '';
+    patients.forEach((patient) => {
+      const item = document.createElement('div');
+      item.className = 'patient-list-item';
+      if (patient.id === selectedId) item.classList.add('active');
+
+      const badge = document.createElement('span');
+      badge.className = 'channel-badge ' + patient.type;
+      badge.textContent = patient.type === 'line' ? 'LINE' : 'Web';
+
+      const name = document.createElement('span');
+      name.textContent = patient.name;
+
+      item.appendChild(badge);
+      item.appendChild(name);
+      item.addEventListener('click', () => selectPatient(patient.id, patient.name));
+
+      patientListEl.appendChild(item);
+    });
+  }
+
+  function renderThread(messages) {
+    consoleLog.innerHTML = '';
+    messages.forEach((m) => {
+      const div = document.createElement('div');
+      // 薬剤師側の画面なので、患者さんのメッセージを相手側（左）、
+      // 自分（AI/薬剤師）からの返信を自分側（右）に表示する
+      div.className = 'bubble ' + (m.role === 'user' ? 'pharmacist' : 'user');
+      const textEl = document.createElement('div');
+      textEl.className = 'bubble-text';
+      textEl.textContent = m.text;
+      div.appendChild(textEl);
+      consoleLog.appendChild(div);
+    });
+    consoleLog.scrollTop = consoleLog.scrollHeight;
+  }
+
+  async function selectPatient(id, name) {
+    selectedId = id;
+    consolePatientName.textContent = name;
+    consoleEmpty.style.display = 'none';
+    consoleChatPanel.style.display = 'block';
+
+    Array.from(patientListEl.children).forEach((item) => item.classList.remove('active'));
+    const patients = await (await fetch('/api/admin/patients')).json();
+    renderPatientList(patients.patients || []);
+
+    await refreshThread();
+    startPolling();
+  }
+
+  async function refreshThread() {
+    if (!selectedId) return;
+    const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/messages');
+    const data = await res.json();
+    renderThread(data.messages || []);
+  }
+
+  function startPolling() {
+    clearInterval(pollTimer);
+    pollTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') refreshThread();
+    }, POLL_INTERVAL_MS);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && selectedId) refreshThread();
+  });
+
+  async function sendMessage() {
+    const text = consoleInput.value.trim();
+    if (!text || !selectedId) return;
+
+    consoleSendButton.disabled = true;
+    try {
+      const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        consoleInput.value = '';
+        await refreshThread();
+      } else {
+        window.alert(data.error || '送信できませんでした。');
+      }
+    } catch (err) {
+      window.alert('通信エラーが発生しました。');
+    } finally {
+      consoleSendButton.disabled = false;
+    }
+  }
+
+  consoleSendButton.addEventListener('click', sendMessage);
+  consoleInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.isComposing) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  init();
+})();

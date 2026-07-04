@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>患者チャットコンソール | かかりつけ薬剤師</title>
+<link rel="stylesheet" href="/css/style.css">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#2F9E8F">
+<link rel="icon" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="かかりつけ薬剤師">
+</head>
+<body>
+
+<nav class="top-nav">
+  <a href="/" class="nav-logo"><span class="nav-logo-icon">💊</span> かかりつけ薬剤師</a>
+  <div class="nav-links">
+    <a href="/profile">プロフィール</a>
+    <a href="/articles">お薬の記事</a>
+    <a href="/contact">仕事のご依頼</a>
+    <a href="/patient" class="nav-cta">患者様はこちら</a>
+  </div>
+</nav>
+
+<div class="page-header">
+  <span class="hero-deco deco-1" aria-hidden="true">💬</span>
+  <span class="hero-deco deco-4" aria-hidden="true">💊</span>
+  <h1 class="reveal">💬 患者チャットコンソール</h1>
+  <p class="reveal delay-1">患者さんを選んで直接チャットできます</p>
+</div>
+<div class="page-wave">
+  <svg viewBox="0 0 500 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0,20 C150,45 350,-5 500,20 L500,40 L0,40 Z" fill="#F4F6F5"></path>
+  </svg>
+</div>
+
+<div class="container" id="app-container">
+
+  <section id="login-section" style="display:none">
+    <div class="card">
+      <div class="card-icon-circle lg c-purple">🔑</div>
+      <h3>パスワードを入力してください</h3>
+      <div class="error" id="login-error" style="display:none"></div>
+      <label for="password-input">パスワード</label>
+      <input type="password" id="password-input" placeholder="LINEで設定したパスワード">
+      <button class="btn" id="login-button">ログイン</button>
+    </div>
+  </section>
+
+  <section id="dashboard-section" style="display:none">
+    <div class="console-layout">
+      <div class="console-sidebar" id="patient-list">読み込み中...</div>
+      <div class="console-chat">
+        <div id="console-empty" class="card">左の一覧から患者さんを選んでください。</div>
+        <div id="console-chat-panel" style="display:none;">
+          <h3 id="console-patient-name"></h3>
+          <div class="card" style="padding:0; overflow:hidden;">
+            <div class="chat-log" id="console-log"></div>
+            <div class="chat-input-row">
+              <input type="text" id="console-input" placeholder="返信を入力">
+              <button id="console-send-button">送信</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer class="site-footer">
+  <div class="footer-grid">
+    <a href="/" class="nav-logo footer-brand"><span class="nav-logo-icon">💊</span> かかりつけ薬剤師</a>
+    <div class="footer-links">
+      <a href="/profile">プロフィール</a>
+      <a href="/articles">お薬の記事</a>
+      <a href="/contact">仕事のご依頼</a>
+      <a href="/patient">患者様はこちら</a>
+    </div>
+  </div>
+  <div class="footer-note" data-copyright>© かかりつけ薬剤師</div>
+</footer>
+
+<script src="/js/site.js"></script>
+<script src="/js/chat-console.js"></script>
+</body>
+</html>

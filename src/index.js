@@ -15,11 +15,13 @@ const line = require('@line/bot-sdk');
 const { handleEvent } = require('./lineHandler');
 const { askClaude } = require('./claudeHandler');
 const { getPasscode } = require('./passcodeManager');
-const { createSession, getSession, markConsented, touchSession } = require('./webSessionManager');
+const { createSession, getSession, markConsented, touchSession, listSessionIds, removeSessionId } = require('./webSessionManager');
 const { addMessage, getHistory } = require('./webConversationManager');
+const { getHistory: getLineHistory, addMessage: addLineMessage } = require('./conversationManager');
+const { getAuthorizedUsers } = require('./authManager');
 const { enhanceImageToBase64 } = require('./imageEnhancer');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
-const { registerSocket, unregisterSocket, popPendingMessages } = require('./wsManager');
+const { registerSocket, unregisterSocket, popPendingMessages, sendToSession } = require('./wsManager');
 const { getProfile, getArticles, getArticle, addArticle, updateArticle, deleteArticle } = require('./contentManager');
 const { recordFeedback } = require('./feedbackLogManager');
 const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
@@ -548,6 +550,90 @@ app.delete('/api/admin/articles/:id', requireAdminSession, async (req, res) => {
   } catch (err) {
     console.error('記事削除エラー（管理）:', err);
     res.status(500).json({ error: '記事を削除できませんでした。' });
+  }
+});
+
+// ────────────────────────────────────
+// 患者チャットコンソール（薬剤師のみ・/adminと同じログイン）
+// ────────────────────────────────────
+
+app.get('/console', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/chat-console.html'));
+});
+
+app.get('/api/admin/patients', requireAdminSession, async (req, res) => {
+  try {
+    const lineIds = (await getAuthorizedUsers()).filter((id) => id !== PHARMACIST_LINE_USER_ID);
+    const linePatients = await Promise.all(
+      lineIds.map(async (id) => {
+        try {
+          const profile = await lineClient.getProfile(id);
+          return { id, type: 'line', name: profile.displayName };
+        } catch (_) {
+          return { id, type: 'line', name: '（表示名不明）' };
+        }
+      })
+    );
+
+    const webIds = await listSessionIds();
+    const webPatients = [];
+    for (const id of webIds) {
+      const session = await getSession(id);
+      if (!session) {
+        await removeSessionId(id); // 期限切れセッションを掃除
+        continue;
+      }
+      if (!session.consented) continue; // 同意前の未完了ログインは表示しない
+      webPatients.push({ id: `web:${id}`, type: 'web', name: session.patientName });
+    }
+
+    res.json({ patients: [...linePatients, ...webPatients] });
+  } catch (err) {
+    console.error('患者一覧取得エラー（コンソール）:', err);
+    res.status(500).json({ error: '患者一覧を取得できませんでした。' });
+  }
+});
+
+app.get('/api/admin/patients/:id/messages', requireAdminSession, async (req, res) => {
+  try {
+    const target = req.params.id;
+    const history = target.startsWith('web:')
+      ? await getHistory(target.slice(4))
+      : getLineHistory(target); // conversationManagerは同期関数
+
+    const messages = history.map((m) => ({
+      role: m.role === 'user' ? 'user' : 'assistant',
+      text: extractDisplayText(m.content),
+    }));
+    res.json({ messages });
+  } catch (err) {
+    console.error('患者スレッド取得エラー（コンソール）:', err);
+    res.status(500).json({ error: 'メッセージを取得できませんでした。' });
+  }
+});
+
+app.post('/api/admin/patients/:id/messages', requireAdminSession, async (req, res) => {
+  const target = req.params.id;
+  const text = (req.body.text || '').trim();
+  if (!text) return res.status(400).json({ error: '本文を入力してください。' });
+
+  const replyText = `💊 担当薬剤師からの返信\n━━━━━━━━━━━━━━\n${text}`;
+
+  try {
+    if (target.startsWith('web:')) {
+      const sessionId = target.slice(4);
+      const session = await getSession(sessionId);
+      if (!session) return res.status(404).json({ error: '患者さんが見つかりません。' });
+      await sendToSession(sessionId, { text: replyText });
+      await addMessage(sessionId, 'assistant', replyText);
+    } else {
+      await lineClient.pushMessage(target, { type: 'text', text: replyText });
+      addLineMessage(target, 'assistant', replyText);
+    }
+    res.json({ ok: true, message: { role: 'assistant', text: replyText } });
+  } catch (err) {
+    console.error('チャットコンソール送信エラー:', err);
+    res.status(500).json({ error: '送信できませんでした。' });
   }
 });
 
