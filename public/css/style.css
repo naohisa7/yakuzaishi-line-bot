@@ -440,7 +440,8 @@ label {
 .patient-list-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
   padding: 10px 12px;
   border-radius: 10px;
   cursor: pointer;
@@ -465,6 +466,24 @@ label {
 
 .channel-badge.web {
   background: var(--brand);
+}
+
+.reminder-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.reminder-badge.reminder-follow-up {
+  background: #FDEFD9;
+  color: #9C6B0A;
+}
+
+.reminder-badge.reminder-visit {
+  background: #FCE4EA;
+  color: #B0335A;
 }
 
 .console-chat {

@@ -27,6 +27,7 @@ const { getProfile, getPharmacistName, getArticles, getArticle, addArticle, upda
 const { recordFeedback } = require('./feedbackLogManager');
 const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
 const { getInterventions, addIntervention } = require('./interventionRecordManager');
+const { getReminder, setReminder, clearReminder, listReminderPatientKeys, markSent } = require('./reminderManager');
 const { generateVideoCallLink } = require('./videoCallLink');
 const { getAdminPasscode } = require('./adminPasscodeManager');
 const { createAdminSession, isValidAdminSession } = require('./adminSessionManager');
@@ -572,33 +573,64 @@ app.get('/host-guide', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/host-guide.html'));
 });
 
+/**
+ * LINE・ホームページ両方の認証済み患者を、patientKey（line:<id> / web:<id>）付きで列挙する
+ */
+async function getAllPatientsWithNames() {
+  const lineIds = (await getAuthorizedUsers()).filter((id) => id !== PHARMACIST_LINE_USER_ID);
+  const linePatients = await Promise.all(
+    lineIds.map(async (id) => {
+      let name;
+      try {
+        const profile = await lineClient.getProfile(id);
+        name = profile.displayName;
+      } catch (_) {
+        name = '（表示名不明）';
+      }
+      return { id, patientKey: `line:${id}`, type: 'line', name };
+    })
+  );
+
+  const webIds = await listSessionIds();
+  const webPatients = [];
+  for (const id of webIds) {
+    const session = await getSession(id);
+    if (!session) {
+      await removeSessionId(id); // 期限切れセッションを掃除
+      continue;
+    }
+    if (!session.consented) continue; // 同意前の未完了ログインは表示しない
+    webPatients.push({ id: `web:${id}`, patientKey: `web:${id}`, type: 'web', name: session.patientName });
+  }
+
+  return [...linePatients, ...webPatients];
+}
+
+/**
+ * 対応記録から、フォローアップ加算・訪問加算の目安になるフラグを計算する
+ * （実際のレセプト算定実績そのものではなく、対応記録を代理指標として使う近似）
+ */
+function computeReminderFlags(records) {
+  const sixMonthsAgoMs = Date.now() - 183 * 24 * 60 * 60 * 1000;
+  const followUpDue = records.some(
+    (r) => (r.type === 'remaining_med' || r.type === 'adverse_event') && new Date(r.recordedAt).getTime() >= sixMonthsAgoMs
+  );
+  const latestVisit = records.find((r) => r.type === 'visit'); // getInterventionsは新しい順
+  const visitDue = !!latestVisit && new Date(latestVisit.recordedAt).getTime() < sixMonthsAgoMs;
+  return { followUpDue, visitDue };
+}
+
 app.get('/api/admin/patients', requireAdminSession, async (req, res) => {
   try {
-    const lineIds = (await getAuthorizedUsers()).filter((id) => id !== PHARMACIST_LINE_USER_ID);
-    const linePatients = await Promise.all(
-      lineIds.map(async (id) => {
-        try {
-          const profile = await lineClient.getProfile(id);
-          return { id, type: 'line', name: profile.displayName };
-        } catch (_) {
-          return { id, type: 'line', name: '（表示名不明）' };
-        }
+    const allPatients = await getAllPatientsWithNames();
+    const patients = await Promise.all(
+      allPatients.map(async ({ id, type, name, patientKey }) => {
+        const flags = computeReminderFlags(await getInterventions(patientKey));
+        return { id, type, name, ...flags };
       })
     );
 
-    const webIds = await listSessionIds();
-    const webPatients = [];
-    for (const id of webIds) {
-      const session = await getSession(id);
-      if (!session) {
-        await removeSessionId(id); // 期限切れセッションを掃除
-        continue;
-      }
-      if (!session.consented) continue; // 同意前の未完了ログインは表示しない
-      webPatients.push({ id: `web:${id}`, type: 'web', name: session.patientName });
-    }
-
-    res.json({ patients: [...linePatients, ...webPatients] });
+    res.json({ patients });
   } catch (err) {
     console.error('患者一覧取得エラー（コンソール）:', err);
     res.status(500).json({ error: '患者一覧を取得できませんでした。' });
@@ -676,6 +708,151 @@ app.post('/api/admin/patients/:id/interventions', requireAdminSession, async (re
   } catch (err) {
     console.error('対応記録追加エラー（コンソール）:', err);
     res.status(500).json({ error: '対応記録を保存できませんでした。' });
+  }
+});
+
+const INTERVENTION_TYPE_LABELS = {
+  follow_up: 'フォローアップ（電話等）',
+  remaining_med: '残薬調整',
+  adverse_event: '有害事象防止（処方変更）',
+  visit: '訪問',
+  other: 'その他',
+};
+
+function csvEscape(value) {
+  const text = String(value ?? '');
+  if (/[",\n]/.test(text)) {
+    return '"' + text.replace(/"/g, '""') + '"';
+  }
+  return text;
+}
+
+app.get('/api/admin/interventions/export', requireAdminSession, async (req, res) => {
+  const month = (req.query.month || '').trim();
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    return res.status(400).json({ error: '月を指定してください（例: 2026-07）。' });
+  }
+
+  try {
+    const allPatients = await getAllPatientsWithNames();
+    const rows = [];
+
+    for (const patient of allPatients) {
+      const records = await getInterventions(patient.patientKey);
+      records
+        .filter((r) => r.recordedAt.startsWith(month))
+        .forEach((r) => {
+          rows.push({
+            recordedAt: r.recordedAt,
+            name: patient.name,
+            channel: patient.type === 'line' ? 'LINE' : 'Web',
+            typeLabel: INTERVENTION_TYPE_LABELS[r.type] || r.type,
+            note: r.note || '',
+          });
+        });
+    }
+
+    rows.sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
+
+    const header = ['日時', '患者名', 'チャネル', '種類', '内容'].join(',');
+    const lines = rows.map((r) =>
+      [r.recordedAt, r.name, r.channel, r.typeLabel, r.note].map(csvEscape).join(',')
+    );
+    const csv = '﻿' + [header, ...lines].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="taiou-kiroku-${month}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    console.error('対応記録CSV出力エラー:', err);
+    res.status(500).json({ error: 'CSVを出力できませんでした。' });
+  }
+});
+
+app.get('/api/admin/patients/:id/reminder', requireAdminSession, async (req, res) => {
+  try {
+    const target = req.params.id;
+    const patientKey = target.startsWith('web:') ? target : `line:${target}`;
+    res.json({ reminder: await getReminder(patientKey) });
+  } catch (err) {
+    console.error('リマインダー取得エラー:', err);
+    res.status(500).json({ error: 'リマインダー設定を取得できませんでした。' });
+  }
+});
+
+app.post('/api/admin/patients/:id/reminder', requireAdminSession, async (req, res) => {
+  const target = req.params.id;
+  const time = (req.body.time || '').trim();
+  const message = (req.body.message || '').trim();
+  if (!/^\d{2}:\d{2}$/.test(time)) {
+    return res.status(400).json({ error: '時刻を指定してください（例: 08:00）。' });
+  }
+
+  try {
+    const patientKey = target.startsWith('web:') ? target : `line:${target}`;
+    await setReminder(patientKey, time, message);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('リマインダー設定エラー:', err);
+    res.status(500).json({ error: 'リマインダーを設定できませんでした。' });
+  }
+});
+
+app.delete('/api/admin/patients/:id/reminder', requireAdminSession, async (req, res) => {
+  try {
+    const target = req.params.id;
+    const patientKey = target.startsWith('web:') ? target : `line:${target}`;
+    await clearReminder(patientKey);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('リマインダー解除エラー:', err);
+    res.status(500).json({ error: 'リマインダーを解除できませんでした。' });
+  }
+});
+
+app.get('/api/cron/medication-reminders', async (req, res) => {
+  if (!process.env.CRON_SECRET || req.query.token !== process.env.CRON_SECRET) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+
+  try {
+    const parts = new Intl.DateTimeFormat('ja-JP', {
+      timeZone: 'Asia/Tokyo',
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date());
+    const get = (t) => parts.find((p) => p.type === t).value;
+    const currentHHMM = `${get('hour')}:${get('minute')}`;
+    const todayStr = `${get('year')}-${get('month')}-${get('day')}`;
+
+    const patientKeys = await listReminderPatientKeys();
+    let sent = 0;
+    for (const patientKey of patientKeys) {
+      const reminder = await getReminder(patientKey);
+      if (!reminder || reminder.lastSentDate === todayStr) continue;
+      if (currentHHMM < reminder.time) continue; // まだ設定時刻前
+
+      const text = reminder.message || '💊 お薬を飲む時間です。飲み忘れがないかご確認ください。';
+      try {
+        if (patientKey.startsWith('web:')) {
+          await sendToSession(patientKey.slice(4), { text });
+        } else {
+          await lineClient.pushMessage(patientKey.slice(5), { type: 'text', text });
+        }
+        await markSent(patientKey, todayStr);
+        sent++;
+      } catch (err) {
+        console.error('リマインダー送信エラー:', patientKey, err.message);
+      }
+    }
+    res.json({ ok: true, sent });
+  } catch (err) {
+    console.error('服薬リマインダーcronエラー:', err);
+    res.status(500).json({ error: 'リマインダー処理に失敗しました。' });
   }
 });
 

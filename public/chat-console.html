@@ -58,6 +58,14 @@
       <button class="btn" id="broadcast-send-button">全員に送信する</button>
     </div>
 
+    <div class="card" id="export-card" style="margin-bottom:20px;">
+      <h3>📄 対応記録CSV出力</h3>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input type="month" id="export-month">
+        <button class="btn" id="export-download-button">ダウンロード</button>
+      </div>
+    </div>
+
     <div class="console-layout">
       <div class="console-sidebar" id="patient-list">読み込み中...</div>
       <div class="console-chat">
@@ -89,6 +97,17 @@
               <button class="btn" id="intervention-add-button">記録する</button>
             </div>
             <div id="intervention-list"></div>
+          </div>
+
+          <div class="card" id="reminder-panel" style="margin-top:16px;">
+            <h4>⏰ 服薬リマインダー</h4>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+              <input type="time" id="reminder-time">
+              <input type="text" id="reminder-message" placeholder="メッセージ（空欄で既定文言）" style="flex:1; min-width:180px; margin-bottom:0;">
+              <button class="btn" id="reminder-save-button">保存する</button>
+              <button class="resolution-btn resolution-no" id="reminder-clear-button">解除する</button>
+            </div>
+            <p id="reminder-status" style="color:var(--muted); font-size:13px; margin-top:8px;"></p>
           </div>
         </div>
       </div>

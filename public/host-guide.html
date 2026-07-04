@@ -82,6 +82,7 @@
         <li><a href="#admin-page">記事管理ページ（/admin）</a></li>
         <li><a href="#console-page">患者チャットコンソール（/console）</a></li>
         <li><a href="#billing">令和8年度改定と対応記録の使い方</a></li>
+        <li><a href="#reminders">服薬リマインダーの設定方法</a></li>
         <li><a href="#troubleshooting">トラブルシューティング</a></li>
       </ol>
     </div>
@@ -196,6 +197,24 @@
           <tr><th>🏠 訪問</th><td>かかりつけ薬剤師訪問加算の記録に</td></tr>
         </table>
         <div class="guide-note">⚠️ この記録機能はあくまで社内メモとしての算定サポートです。実際のレセプト請求要件は最新の告示・疑義解釈をご確認のうえご判断ください。</div>
+        <p style="margin-top:14px;"><strong>患者一覧のバッジ</strong>：直近6か月以内に「残薬調整」「有害事象防止」の対応記録がある患者さんには🔔フォローのバッジが、訪問記録から6か月以上経過した患者さんには🏠訪問検討のバッジが自動で表示されます（対応記録を代理指標にした目安であり、正式なレセプト算定実績ではありません）。</p>
+        <p><strong>月次CSV出力</strong>：ダッシュボード上部の「📄 対応記録CSV出力」から、月を選んでダウンロードボタンを押すと、その月の全患者さんの対応記録がCSV形式で書き出されます。レセコンへの転記作業にご活用ください。</p>
+      </div>
+    </section>
+
+    <section id="reminders" class="guide-section">
+      <h2>⏰ 服薬リマインダーの設定方法</h2>
+      <div class="card reveal-on-scroll reveal-up">
+        <p><code class="cmd">/console</code>で患者さんを選び、「⏰ 服薬リマインダー」から時刻とメッセージ（任意）を設定すると、毎日その時刻にLINEまたはホームページへ服薬リマインダーが自動送信されます（1日1回）。</p>
+        <div class="guide-note">
+          ⚠️ Renderの無料プランには信頼できる内蔵スケジューラがないため、外部の無料cronサービスと組み合わせる必要があります。以下の設定を一度だけ行ってください。
+        </div>
+        <ol style="padding-left:20px; line-height:2; margin-top:12px;">
+          <li>Renderの環境変数に <code class="cmd">CRON_SECRET</code>（任意の乱数文字列）を設定する</li>
+          <li>無料のcron送信サービス（例：cron-job.org）にご自身で登録する</li>
+          <li>次のURLを15分間隔程度で呼び出すように設定する：<br><code class="cmd">https://&lt;ドメイン&gt;/api/cron/medication-reminders?token=&lt;CRON_SECRETの値&gt;</code></li>
+        </ol>
+        <p style="margin-top:10px;">設定時刻を過ぎていて、かつその日まだ送信していない場合に送信される仕組みのため、cronの実行間隔が多少ずれていても、その日最初のチェックで確実に届きます。</p>
       </div>
     </section>
 

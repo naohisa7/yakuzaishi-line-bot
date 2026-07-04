@@ -17,6 +17,13 @@
   const interventionNote = document.getElementById('intervention-note');
   const interventionAddButton = document.getElementById('intervention-add-button');
   const interventionList = document.getElementById('intervention-list');
+  const exportMonth = document.getElementById('export-month');
+  const exportDownloadButton = document.getElementById('export-download-button');
+  const reminderTime = document.getElementById('reminder-time');
+  const reminderMessage = document.getElementById('reminder-message');
+  const reminderSaveButton = document.getElementById('reminder-save-button');
+  const reminderClearButton = document.getElementById('reminder-clear-button');
+  const reminderStatus = document.getElementById('reminder-status');
 
   const INTERVENTION_LABELS = {
     follow_up: '📞 フォローアップ（電話等）',
@@ -45,10 +52,16 @@
       showSection(dashboardSection);
       await loadPatients();
       await loadBroadcastTemplates();
+      exportMonth.value = new Date().toISOString().slice(0, 7);
     } else {
       showSection(loginSection);
     }
   }
+
+  exportDownloadButton.addEventListener('click', () => {
+    if (!exportMonth.value) return;
+    window.location.href = '/api/admin/interventions/export?month=' + encodeURIComponent(exportMonth.value);
+  });
 
   async function loadBroadcastTemplates() {
     const res = await fetch('/api/admin/broadcast-templates');
@@ -120,6 +133,7 @@
     showSection(dashboardSection);
     await loadPatients();
     await loadBroadcastTemplates();
+    exportMonth.value = new Date().toISOString().slice(0, 7);
   });
 
   async function loadPatients() {
@@ -149,6 +163,20 @@
 
       item.appendChild(badge);
       item.appendChild(name);
+
+      if (patient.followUpDue) {
+        const followUpBadge = document.createElement('span');
+        followUpBadge.className = 'reminder-badge reminder-follow-up';
+        followUpBadge.textContent = '🔔フォロー';
+        item.appendChild(followUpBadge);
+      }
+      if (patient.visitDue) {
+        const visitBadge = document.createElement('span');
+        visitBadge.className = 'reminder-badge reminder-visit';
+        visitBadge.textContent = '🏠訪問検討';
+        item.appendChild(visitBadge);
+      }
+
       item.addEventListener('click', () => selectPatient(patient.id, patient.name));
 
       patientListEl.appendChild(item);
@@ -184,8 +212,66 @@
 
     await refreshThread();
     await refreshInterventions();
+    await refreshReminder();
     startPolling();
   }
+
+  async function refreshReminder() {
+    if (!selectedId) return;
+    const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/reminder');
+    const data = await res.json();
+    if (data.reminder) {
+      reminderTime.value = data.reminder.time;
+      reminderMessage.value = data.reminder.message || '';
+      reminderStatus.textContent = `設定中：毎日 ${data.reminder.time}`;
+    } else {
+      reminderTime.value = '';
+      reminderMessage.value = '';
+      reminderStatus.textContent = '未設定です。';
+    }
+  }
+
+  reminderSaveButton.addEventListener('click', async () => {
+    if (!selectedId || !reminderTime.value) return;
+
+    reminderSaveButton.disabled = true;
+    try {
+      const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ time: reminderTime.value, message: reminderMessage.value.trim() }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        await refreshReminder();
+      } else {
+        window.alert(data.error || '設定できませんでした。');
+      }
+    } catch (err) {
+      window.alert('通信エラーが発生しました。');
+    } finally {
+      reminderSaveButton.disabled = false;
+    }
+  });
+
+  reminderClearButton.addEventListener('click', async () => {
+    if (!selectedId) return;
+
+    reminderClearButton.disabled = true;
+    try {
+      const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/reminder', { method: 'DELETE' });
+      const data = await res.json();
+      if (data.ok) {
+        await refreshReminder();
+      } else {
+        window.alert(data.error || '解除できませんでした。');
+      }
+    } catch (err) {
+      window.alert('通信エラーが発生しました。');
+    } finally {
+      reminderClearButton.disabled = false;
+    }
+  });
 
   async function refreshThread() {
     if (!selectedId) return;
