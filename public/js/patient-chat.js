@@ -50,13 +50,30 @@
     return scored[0].voice;
   }
 
-  // 絵文字をそのまま読み上げると「にっこり笑う顔」のように読まれて不自然なため、
-  // 読み上げ用のテキストからだけ取り除く（画面上の表示はそのまま絵文字ありで残す）
-  function stripEmojiForSpeech(text) {
+  // 絵文字や強調記号（**太字**、箇条書きの記号など）をそのまま読み上げると
+  // 「にっこり笑う顔」「アスタリスク」のように読まれて不自然なため、読み上げ用の
+  // テキストからだけ取り除く（画面上の表示はそのまま記号ありで残す）
+  function cleanTextForSpeech(text) {
     return text
       .replace(/\p{Extended_Pictographic}(‍\p{Extended_Pictographic})*/gu, '')
       .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '')
       .replace(/️/g, '')
+      // 見出し記号（# ## など）
+      .replace(/^#{1,6}\s*/gm, '')
+      // 太字・斜体・打ち消し線（中身のテキストは残す）
+      .replace(/\*\*(.+?)\*\*/g, '$1')
+      .replace(/__(.+?)__/g, '$1')
+      .replace(/~~(.+?)~~/g, '$1')
+      .replace(/\*(.+?)\*/g, '$1')
+      .replace(/(?<![\p{L}\p{N}])_(.+?)_(?![\p{L}\p{N}])/gu, '$1')
+      // コードの引用記号
+      .replace(/`+/g, '')
+      // 罫線・区切り線（同じ記号の連続）
+      .replace(/^[━─―=~*_-]{3,}$/gm, '')
+      // 箇条書きの先頭記号
+      .replace(/^[ \t]*[-・*●○▪◆]\s*/gm, '')
+      // 上記で対にならず残ってしまった記号を最後に一掃する
+      .replace(/[*#`~]/g, '')
       .replace(/[ \t]{2,}/g, ' ');
   }
 
@@ -64,7 +81,7 @@
   function buildSpeechSegments(text) {
     return text
       .split(/\n\s*\n/)
-      .map((part) => stripEmojiForSpeech(part).replace(/\s*\n\s*/g, ' ').trim())
+      .map((part) => cleanTextForSpeech(part).replace(/\s*\n\s*/g, ' ').trim())
       .filter((part) => part.length > 0);
   }
 
