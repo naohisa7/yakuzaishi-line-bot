@@ -260,8 +260,6 @@
         reminderList.appendChild(row);
       });
     }
-
-    reminderAddButton.disabled = reminders.length >= 3;
   }
 
   async function refreshReminder() {
@@ -285,13 +283,13 @@
       if (data.ok) {
         reminderTime.value = '';
         reminderMessage.value = '';
-        await refreshReminder(); // 3件に達していれば、ここでボタンを再度disabledにする
+        await refreshReminder();
       } else {
         window.alert(data.error || '設定できませんでした。');
-        reminderAddButton.disabled = false;
       }
     } catch (err) {
       window.alert('通信エラーが発生しました。');
+    } finally {
       reminderAddButton.disabled = false;
     }
   });
