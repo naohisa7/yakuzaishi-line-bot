@@ -100,14 +100,13 @@
           </div>
 
           <div class="card" id="reminder-panel" style="margin-top:16px;">
-            <h4>⏰ 服薬リマインダー</h4>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <h4>⏰ 服薬リマインダー（1日最大3回まで）</h4>
+            <div id="reminder-list"></div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px;">
               <input type="time" id="reminder-time">
               <input type="text" id="reminder-message" placeholder="メッセージ（空欄で既定文言）" style="flex:1; min-width:180px; margin-bottom:0;">
-              <button class="btn" id="reminder-save-button">保存する</button>
-              <button class="resolution-btn resolution-no" id="reminder-clear-button">解除する</button>
+              <button class="btn" id="reminder-add-button">追加する</button>
             </div>
-            <p id="reminder-status" style="color:var(--muted); font-size:13px; margin-top:8px;"></p>
           </div>
         </div>
       </div>

@@ -21,9 +21,8 @@
   const exportDownloadButton = document.getElementById('export-download-button');
   const reminderTime = document.getElementById('reminder-time');
   const reminderMessage = document.getElementById('reminder-message');
-  const reminderSaveButton = document.getElementById('reminder-save-button');
-  const reminderClearButton = document.getElementById('reminder-clear-button');
-  const reminderStatus = document.getElementById('reminder-status');
+  const reminderAddButton = document.getElementById('reminder-add-button');
+  const reminderList = document.getElementById('reminder-list');
 
   const INTERVENTION_LABELS = {
     follow_up: '📞 フォローアップ（電話等）',
@@ -216,25 +215,66 @@
     startPolling();
   }
 
+  function renderReminderList(reminders) {
+    reminderList.innerHTML = '';
+    if (reminders.length === 0) {
+      const p = document.createElement('p');
+      p.style.cssText = 'color:var(--muted); font-size:13px; margin:0;';
+      p.textContent = '未設定です。';
+      reminderList.appendChild(p);
+    } else {
+      reminders.forEach((r) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:6px 0; border-bottom:1px solid #EEE; font-size:14px;';
+
+        const label = document.createElement('span');
+        label.style.flex = '1';
+        label.textContent = `毎日 ${r.time}${r.message ? ' ・ ' + r.message : ''}`;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'resolution-btn resolution-no';
+        removeBtn.textContent = '削除';
+        removeBtn.addEventListener('click', async () => {
+          removeBtn.disabled = true;
+          try {
+            const res = await fetch(
+              '/api/admin/patients/' + encodeURIComponent(selectedId) + '/reminder/' + encodeURIComponent(r.id),
+              { method: 'DELETE' }
+            );
+            const data = await res.json();
+            if (data.ok) {
+              await refreshReminder();
+            } else {
+              window.alert(data.error || '削除できませんでした。');
+            }
+          } catch (err) {
+            window.alert('通信エラーが発生しました。');
+          } finally {
+            removeBtn.disabled = false;
+          }
+        });
+
+        row.appendChild(label);
+        row.appendChild(removeBtn);
+        reminderList.appendChild(row);
+      });
+    }
+
+    reminderAddButton.disabled = reminders.length >= 3;
+  }
+
   async function refreshReminder() {
     if (!selectedId) return;
     const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/reminder');
     const data = await res.json();
-    if (data.reminder) {
-      reminderTime.value = data.reminder.time;
-      reminderMessage.value = data.reminder.message || '';
-      reminderStatus.textContent = `設定中：毎日 ${data.reminder.time}`;
-    } else {
-      reminderTime.value = '';
-      reminderMessage.value = '';
-      reminderStatus.textContent = '未設定です。';
-    }
+    renderReminderList(data.reminders || []);
   }
 
-  reminderSaveButton.addEventListener('click', async () => {
+  reminderAddButton.addEventListener('click', async () => {
     if (!selectedId || !reminderTime.value) return;
 
-    reminderSaveButton.disabled = true;
+    reminderAddButton.disabled = true;
     try {
       const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/reminder', {
         method: 'POST',
@@ -243,33 +283,16 @@
       });
       const data = await res.json();
       if (data.ok) {
-        await refreshReminder();
+        reminderTime.value = '';
+        reminderMessage.value = '';
+        await refreshReminder(); // 3件に達していれば、ここでボタンを再度disabledにする
       } else {
         window.alert(data.error || '設定できませんでした。');
+        reminderAddButton.disabled = false;
       }
     } catch (err) {
       window.alert('通信エラーが発生しました。');
-    } finally {
-      reminderSaveButton.disabled = false;
-    }
-  });
-
-  reminderClearButton.addEventListener('click', async () => {
-    if (!selectedId) return;
-
-    reminderClearButton.disabled = true;
-    try {
-      const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/reminder', { method: 'DELETE' });
-      const data = await res.json();
-      if (data.ok) {
-        await refreshReminder();
-      } else {
-        window.alert(data.error || '解除できませんでした。');
-      }
-    } catch (err) {
-      window.alert('通信エラーが発生しました。');
-    } finally {
-      reminderClearButton.disabled = false;
+      reminderAddButton.disabled = false;
     }
   });
 

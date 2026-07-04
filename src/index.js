@@ -27,7 +27,7 @@ const { getProfile, getPharmacistName, getArticles, getArticle, addArticle, upda
 const { recordFeedback } = require('./feedbackLogManager');
 const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
 const { getInterventions, addIntervention } = require('./interventionRecordManager');
-const { getReminder, setReminder, clearReminder, listReminderPatientKeys, markSent } = require('./reminderManager');
+const { getReminders, addReminder, removeReminder, listReminderPatientKeys, markSent } = require('./reminderManager');
 const { generateVideoCallLink } = require('./videoCallLink');
 const { getAdminPasscode } = require('./adminPasscodeManager');
 const { createAdminSession, isValidAdminSession } = require('./adminSessionManager');
@@ -773,7 +773,7 @@ app.get('/api/admin/patients/:id/reminder', requireAdminSession, async (req, res
   try {
     const target = req.params.id;
     const patientKey = target.startsWith('web:') ? target : `line:${target}`;
-    res.json({ reminder: await getReminder(patientKey) });
+    res.json({ reminders: await getReminders(patientKey) });
   } catch (err) {
     console.error('リマインダー取得エラー:', err);
     res.status(500).json({ error: 'リマインダー設定を取得できませんでした。' });
@@ -790,19 +790,18 @@ app.post('/api/admin/patients/:id/reminder', requireAdminSession, async (req, re
 
   try {
     const patientKey = target.startsWith('web:') ? target : `line:${target}`;
-    await setReminder(patientKey, time, message);
+    await addReminder(patientKey, time, message);
     res.json({ ok: true });
   } catch (err) {
-    console.error('リマインダー設定エラー:', err);
-    res.status(500).json({ error: 'リマインダーを設定できませんでした。' });
+    res.status(400).json({ error: err.message || 'リマインダーを設定できませんでした。' });
   }
 });
 
-app.delete('/api/admin/patients/:id/reminder', requireAdminSession, async (req, res) => {
+app.delete('/api/admin/patients/:id/reminder/:reminderId', requireAdminSession, async (req, res) => {
   try {
     const target = req.params.id;
     const patientKey = target.startsWith('web:') ? target : `line:${target}`;
-    await clearReminder(patientKey);
+    await removeReminder(patientKey, req.params.reminderId);
     res.json({ ok: true });
   } catch (err) {
     console.error('リマインダー解除エラー:', err);
@@ -832,21 +831,23 @@ app.get('/api/cron/medication-reminders', async (req, res) => {
     const patientKeys = await listReminderPatientKeys();
     let sent = 0;
     for (const patientKey of patientKeys) {
-      const reminder = await getReminder(patientKey);
-      if (!reminder || reminder.lastSentDate === todayStr) continue;
-      if (currentHHMM < reminder.time) continue; // まだ設定時刻前
+      const reminders = await getReminders(patientKey);
+      for (const reminder of reminders) {
+        if (reminder.lastSentDate === todayStr) continue;
+        if (currentHHMM < reminder.time) continue; // まだ設定時刻前
 
-      const text = reminder.message || '💊 お薬を飲む時間です。飲み忘れがないかご確認ください。';
-      try {
-        if (patientKey.startsWith('web:')) {
-          await sendToSession(patientKey.slice(4), { text });
-        } else {
-          await lineClient.pushMessage(patientKey.slice(5), { type: 'text', text });
+        const text = reminder.message || '💊 お薬を飲む時間です。飲み忘れがないかご確認ください。';
+        try {
+          if (patientKey.startsWith('web:')) {
+            await sendToSession(patientKey.slice(4), { text });
+          } else {
+            await lineClient.pushMessage(patientKey.slice(5), { type: 'text', text });
+          }
+          await markSent(patientKey, reminder.id, todayStr);
+          sent++;
+        } catch (err) {
+          console.error('リマインダー送信エラー:', patientKey, reminder.id, err.message);
         }
-        await markSent(patientKey, todayStr);
-        sent++;
-      } catch (err) {
-        console.error('リマインダー送信エラー:', patientKey, err.message);
       }
     }
     res.json({ ok: true, sent });
