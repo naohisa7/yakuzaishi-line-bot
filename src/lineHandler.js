@@ -9,6 +9,7 @@ const { generateLinkCode, resolveLinkCode, linkPerson, getAllLinkedPeople } = re
 const { markPendingConsent, isPendingConsent, clearPendingConsent } = require('./consentManager');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { startReply, getReplyTarget, clearReply } = require('./replyManager');
+const { setPendingBroadcast, getPendingBroadcast, clearPendingBroadcast } = require('./pendingBroadcastManager');
 const { getPasscode, setPasscode } = require('./passcodeManager');
 const {
   setProfile,
@@ -185,6 +186,22 @@ function buildBroadcastTemplateMenu() {
         type: 'action',
         action: { type: 'message', label: tpl.label, text: tpl.label },
       })),
+    },
+  };
+}
+
+/**
+ * 一斉送信前の最終確認メッセージ（誤送信防止のため、内容を必ず表示してから送信させる）
+ */
+function buildBroadcastConfirmMessage(text) {
+  return {
+    type: 'text',
+    text: `📢 以下の内容を一斉送信します。よろしいですか？\n━━━━━━━━━━━━━━\n${text}\n━━━━━━━━━━━━━━`,
+    quickReply: {
+      items: [
+        { type: 'action', action: { type: 'message', label: '送信する', text: '送信する' } },
+        { type: 'action', action: { type: 'message', label: 'キャンセル', text: 'キャンセル' } },
+      ],
     },
   };
 }
@@ -432,6 +449,32 @@ async function handleEvent(event, lineClient) {
       });
     }
 
+    // 一斉送信の内容確認待ち中は、確定・キャンセルの返答を最優先で処理する（誤送信防止）
+    const pendingBroadcastText = getPendingBroadcast(userId);
+    if (pendingBroadcastText) {
+      if (trimmedAdminMessage === '送信する') {
+        clearPendingBroadcast(userId);
+        const result = await broadcastToPatients(lineClient, pendingBroadcastText);
+        return lineClient.replyMessage(event.replyToken, {
+          type: 'text',
+          text: result.sent
+            ? `${result.count}名の患者さんに一斉送信しました。`
+            : '認証済みの患者さんがまだいないため、送信できませんでした。',
+        });
+      }
+
+      if (trimmedAdminMessage === 'キャンセル') {
+        clearPendingBroadcast(userId);
+        return lineClient.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '一斉送信をキャンセルしました。',
+        });
+      }
+
+      // 「送信する」「キャンセル」以外が来た場合は、確認待ちのまま再度確認メッセージを表示する
+      return lineClient.replyMessage(event.replyToken, buildBroadcastConfirmMessage(pendingBroadcastText));
+    }
+
     // 「患者一覧」で特定の患者さんを選んでチャットを開始
     if (trimmedAdminMessage === '患者一覧') {
       return lineClient.replyMessage(event.replyToken, await buildPatientListMessage(lineClient));
@@ -542,28 +585,19 @@ async function handleEvent(event, lineClient) {
       return lineClient.replyMessage(event.replyToken, buildBroadcastTemplateMenu());
     }
 
-    // メニューから定型文ラベルが選択された場合
+    // メニューから定型文ラベルが選択された場合（誤送信防止のため、即送信せず確認を挟む）
     const matchedTemplate = BROADCAST_TEMPLATES.find((tpl) => tpl.label === trimmedAdminMessage);
     if (matchedTemplate) {
-      const result = await broadcastToPatients(lineClient, matchedTemplate.text);
-      return lineClient.replyMessage(event.replyToken, {
-        type: 'text',
-        text: result.sent
-          ? `${result.count}名の患者さんに送信しました。`
-          : '認証済みの患者さんがまだいないため、送信できませんでした。',
-      });
+      setPendingBroadcast(userId, matchedTemplate.text);
+      return lineClient.replyMessage(event.replyToken, buildBroadcastConfirmMessage(matchedTemplate.text));
     }
 
-    // 「一斉送信：本文」の形式で自由文を送信
+    // 「一斉送信：本文」の形式で自由文を送信（こちらも確認を挟む）
     const broadcastMatch = userMessage.match(/^一斉送信[:：]\s*([\s\S]+)$/);
     if (broadcastMatch) {
-      const result = await broadcastToPatients(lineClient, broadcastMatch[1].trim());
-      return lineClient.replyMessage(event.replyToken, {
-        type: 'text',
-        text: result.sent
-          ? `${result.count}名の患者さんに一斉送信しました。`
-          : '認証済みの患者さんがまだいないため、送信できませんでした。',
-      });
+      const text = broadcastMatch[1].trim();
+      setPendingBroadcast(userId, text);
+      return lineClient.replyMessage(event.replyToken, buildBroadcastConfirmMessage(text));
     }
   }
 
