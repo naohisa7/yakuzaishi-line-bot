@@ -404,6 +404,28 @@ label {
   display: none;
 }
 
+.mic-btn.recording {
+  animation: micPulse 1s infinite;
+}
+
+@keyframes micPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic-btn.recording {
+    animation: none;
+  }
+}
+
+.voice-hint {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 8px 12px 0;
+}
+
 .footer-note {
   text-align: center;
   color: var(--muted);

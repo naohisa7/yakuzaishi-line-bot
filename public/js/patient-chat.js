@@ -475,6 +475,54 @@
     });
   }
 
+  // Android(Chrome)は実際に音声認識して自動でテキストを入力できるが、
+  // iPhoneはブラウザの種類を問わずWebKit制約でこれが使えないため、
+  // 代わりにキーボード標準のマイク機能を使ってもらう案内を表示する
+  const micButton = document.getElementById('mic-button');
+  const voiceHint = document.getElementById('voice-hint');
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (isAndroid && SpeechRecognitionCtor && micButton) {
+    micButton.style.display = '';
+    let recognition = null;
+    let isListening = false;
+
+    micButton.addEventListener('click', () => {
+      if (isListening) {
+        recognition.stop();
+        return;
+      }
+
+      recognition = new SpeechRecognitionCtor();
+      recognition.lang = 'ja-JP';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        isListening = true;
+        micButton.classList.add('recording');
+      };
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        const input = document.getElementById('message-input');
+        input.value = input.value ? input.value + transcript : transcript;
+        input.focus();
+      };
+      recognition.onerror = () => {
+        // 認識に失敗しても手入力に切り替えられるよう、特にエラー表示はしない
+      };
+      recognition.onend = () => {
+        isListening = false;
+        micButton.classList.remove('recording');
+      };
+
+      recognition.start();
+    });
+  } else if (voiceHint) {
+    voiceHint.style.display = 'block';
+  }
+
   const sendButton = document.getElementById('send-button');
   sendButton.addEventListener('click', sendMessage);
 
