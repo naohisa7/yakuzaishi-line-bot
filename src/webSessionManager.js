@@ -34,6 +34,14 @@ async function removeSessionId(id) {
   await redis.srem(WEB_SESSION_SET_KEY, id);
 }
 
+/**
+ * 患者さんの認証を解除する（セッション自体を削除し、次回は名前・認証コードの入力からやり直しになる）
+ */
+async function deleteSession(id) {
+  await redis.del(sessionKey(id));
+  await removeSessionId(id);
+}
+
 async function getSession(id) {
   const raw = await redis.get(sessionKey(id));
   return raw ? JSON.parse(raw) : null;
@@ -50,4 +58,4 @@ async function touchSession(id) {
   await redis.expire(sessionKey(id), SESSION_TTL_SECONDS);
 }
 
-module.exports = { createSession, getSession, markConsented, touchSession, listSessionIds, removeSessionId };
+module.exports = { createSession, getSession, markConsented, touchSession, listSessionIds, removeSessionId, deleteSession };

@@ -15,10 +15,10 @@ const line = require('@line/bot-sdk');
 const { handleEvent } = require('./lineHandler');
 const { askClaude } = require('./claudeHandler');
 const { getPasscode } = require('./passcodeManager');
-const { createSession, getSession, markConsented, touchSession, listSessionIds, removeSessionId } = require('./webSessionManager');
+const { createSession, getSession, markConsented, touchSession, listSessionIds, removeSessionId, deleteSession } = require('./webSessionManager');
 const { addMessage, getHistory } = require('./webConversationManager');
 const { getHistory: getLineHistory, addMessage: addLineMessage } = require('./conversationManager');
-const { getAuthorizedUsers } = require('./authManager');
+const { getAuthorizedUsers, revoke: revokeAuthorization } = require('./authManager');
 const { enhanceImageToBase64 } = require('./imageEnhancer');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { registerSocket, unregisterSocket, popPendingMessages, sendToSession } = require('./wsManager');
@@ -634,6 +634,22 @@ app.post('/api/admin/patients/:id/messages', requireAdminSession, async (req, re
   } catch (err) {
     console.error('チャットコンソール送信エラー:', err);
     res.status(500).json({ error: '送信できませんでした。' });
+  }
+});
+
+app.delete('/api/admin/patients/:id', requireAdminSession, async (req, res) => {
+  const target = req.params.id;
+
+  try {
+    if (target.startsWith('web:')) {
+      await deleteSession(target.slice(4));
+    } else {
+      await revokeAuthorization(target);
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('認証解除エラー（コンソール）:', err);
+    res.status(500).json({ error: '認証解除できませんでした。' });
   }
 });
 

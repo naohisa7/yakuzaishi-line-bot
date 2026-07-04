@@ -56,7 +56,10 @@
       <div class="console-chat">
         <div id="console-empty" class="card">左の一覧から患者さんを選んでください。</div>
         <div id="console-chat-panel" style="display:none;">
-          <h3 id="console-patient-name"></h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+            <h3 id="console-patient-name"></h3>
+            <button type="button" id="console-revoke-button" class="resolution-btn resolution-no">🔒 認証解除</button>
+          </div>
           <div class="card" style="padding:0; overflow:hidden;">
             <div class="chat-log" id="console-log"></div>
             <div class="chat-input-row">

@@ -9,10 +9,12 @@
   const consoleLog = document.getElementById('console-log');
   const consoleInput = document.getElementById('console-input');
   const consoleSendButton = document.getElementById('console-send-button');
+  const consoleRevokeButton = document.getElementById('console-revoke-button');
 
   const POLL_INTERVAL_MS = 4000;
 
   let selectedId = null;
+  let selectedName = null;
   let pollTimer = null;
 
   function showSection(section) {
@@ -110,6 +112,7 @@
 
   async function selectPatient(id, name) {
     selectedId = id;
+    selectedName = name;
     consolePatientName.textContent = name;
     consoleEmpty.style.display = 'none';
     consoleChatPanel.style.display = 'block';
@@ -170,6 +173,36 @@
     if (e.key === 'Enter' && !e.isComposing) {
       e.preventDefault();
       sendMessage();
+    }
+  });
+
+  consoleRevokeButton.addEventListener('click', async () => {
+    if (!selectedId) return;
+
+    // 解除する相手を必ず名前で確認してもらい、患者さんを取り違えて解除しないようにする
+    const confirmed = window.confirm(
+      `「${selectedName}」さんの認証を解除します。\n次回の相談時は、認証コードの入力からやり直しになります。\n本当によろしいですか？`
+    );
+    if (!confirmed) return;
+
+    consoleRevokeButton.disabled = true;
+    try {
+      const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId), { method: 'DELETE' });
+      const data = await res.json();
+      if (data.ok) {
+        clearInterval(pollTimer);
+        selectedId = null;
+        selectedName = null;
+        consoleChatPanel.style.display = 'none';
+        consoleEmpty.style.display = 'block';
+        await loadPatients();
+      } else {
+        window.alert(data.error || '認証解除できませんでした。');
+      }
+    } catch (err) {
+      window.alert('通信エラーが発生しました。');
+    } finally {
+      consoleRevokeButton.disabled = false;
     }
   });
 

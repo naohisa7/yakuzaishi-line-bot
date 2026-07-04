@@ -18,4 +18,11 @@ async function getAuthorizedUsers() {
   return redis.smembers(AUTH_SET_KEY);
 }
 
-module.exports = { isAuthorized, authorize, getAuthorizedUsers };
+/**
+ * 患者さんの認証を解除する（次回利用時は認証コードの入力からやり直しになる）
+ */
+async function revoke(userId) {
+  await redis.srem(AUTH_SET_KEY, userId);
+}
+
+module.exports = { isAuthorized, authorize, getAuthorizedUsers, revoke };
