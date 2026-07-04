@@ -563,29 +563,22 @@ app.get('/console', (req, res) => {
 
 app.get('/api/admin/patients', requireAdminSession, async (req, res) => {
   try {
-    const rawAuthorizedUsers = await getAuthorizedUsers();
-    console.log('[console debug] authorized_users raw:', JSON.stringify(rawAuthorizedUsers));
-    console.log('[console debug] PHARMACIST_LINE_USER_ID:', PHARMACIST_LINE_USER_ID);
-    const lineIds = rawAuthorizedUsers.filter((id) => id !== PHARMACIST_LINE_USER_ID);
-    console.log('[console debug] lineIds after filter:', JSON.stringify(lineIds));
+    const lineIds = (await getAuthorizedUsers()).filter((id) => id !== PHARMACIST_LINE_USER_ID);
     const linePatients = await Promise.all(
       lineIds.map(async (id) => {
         try {
           const profile = await lineClient.getProfile(id);
           return { id, type: 'line', name: profile.displayName };
-        } catch (err) {
-          console.log('[console debug] getProfile failed for', id, ':', err.message);
+        } catch (_) {
           return { id, type: 'line', name: '（表示名不明）' };
         }
       })
     );
 
     const webIds = await listSessionIds();
-    console.log('[console debug] web_session_ids raw:', JSON.stringify(webIds));
     const webPatients = [];
     for (const id of webIds) {
       const session = await getSession(id);
-      console.log('[console debug] web session', id, ':', JSON.stringify(session));
       if (!session) {
         await removeSessionId(id); // 期限切れセッションを掃除
         continue;
