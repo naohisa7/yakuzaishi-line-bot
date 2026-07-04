@@ -17,7 +17,8 @@ const {
   findArticleByIdPrefix,
   deleteArticle,
 } = require('./contentManager');
-const { getSession: getWebSession } = require('./webSessionManager');
+const { getSession: getWebSession, listSessionIds, removeSessionId } = require('./webSessionManager');
+const { addMessage: addWebMessage } = require('./webConversationManager');
 const { sendToSession } = require('./wsManager');
 const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
 const { generateVideoCallLink } = require('./videoCallLink');
@@ -229,14 +230,30 @@ async function buildPatientListMessage(lineClient) {
 
 /**
  * 認証済み患者さん（薬剤師自身を除く）へ一斉送信
+ * LINE経由・ホームページ経由どちらの患者さんにも届ける
  */
 async function broadcastToPatients(lineClient, text) {
-  const recipients = (await getAuthorizedUsers()).filter((id) => id !== PHARMACIST_LINE_USER_ID);
-  if (recipients.length === 0) {
-    return { sent: false, count: 0 };
+  const lineRecipients = (await getAuthorizedUsers()).filter((id) => id !== PHARMACIST_LINE_USER_ID);
+  if (lineRecipients.length > 0) {
+    await lineClient.multicast(lineRecipients, { type: 'text', text });
   }
-  await lineClient.multicast(recipients, { type: 'text', text });
-  return { sent: true, count: recipients.length };
+
+  const webIds = await listSessionIds();
+  let webCount = 0;
+  for (const id of webIds) {
+    const session = await getWebSession(id);
+    if (!session) {
+      await removeSessionId(id); // 期限切れセッションを掃除
+      continue;
+    }
+    if (!session.consented) continue;
+    await sendToSession(id, { text });
+    await addWebMessage(id, 'assistant', text);
+    webCount++;
+  }
+
+  const count = lineRecipients.length + webCount;
+  return { sent: count > 0, count };
 }
 
 /**
