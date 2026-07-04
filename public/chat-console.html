@@ -74,6 +74,22 @@
               <button id="console-send-button">送信</button>
             </div>
           </div>
+
+          <div class="card" id="intervention-panel" style="margin-top:16px;">
+            <h4>📋 対応記録（算定サポート用メモ）</h4>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+              <select id="intervention-type">
+                <option value="follow_up">📞 フォローアップ（電話等）</option>
+                <option value="remaining_med">💊 残薬調整</option>
+                <option value="adverse_event">⚠️ 有害事象防止（処方変更）</option>
+                <option value="visit">🏠 訪問</option>
+                <option value="other">📝 その他</option>
+              </select>
+              <input type="text" id="intervention-note" placeholder="内容（例：電話で服薬状況を確認）" style="flex:1; min-width:180px; margin-bottom:0;">
+              <button class="btn" id="intervention-add-button">記録する</button>
+            </div>
+            <div id="intervention-list"></div>
+          </div>
         </div>
       </div>
     </div>

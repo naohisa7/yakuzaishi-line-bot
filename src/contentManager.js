@@ -7,7 +7,9 @@ const redis = require('./redisClient');
 
 const PROFILE_KEY = 'site_profile';
 const ARTICLE_IDS_KEY = 'site_article_ids';
+const PHARMACIST_NAME_KEY = 'pharmacist_name';
 const DEFAULT_PROFILE = 'プロフィールは準備中です。LINEから「プロフィール編集:本文」で設定できます。';
+const DEFAULT_PHARMACIST_NAME = '担当薬剤師';
 
 function articleKey(id) {
   return `site_article:${id}`;
@@ -20,6 +22,15 @@ async function getProfile() {
 
 async function setProfile(text) {
   await redis.set(PROFILE_KEY, text);
+}
+
+async function getPharmacistName() {
+  const name = await redis.get(PHARMACIST_NAME_KEY);
+  return name || DEFAULT_PHARMACIST_NAME;
+}
+
+async function setPharmacistName(name) {
+  await redis.set(PHARMACIST_NAME_KEY, name);
 }
 
 async function addArticle(title, body) {
@@ -68,6 +79,8 @@ async function deleteArticle(id) {
 module.exports = {
   getProfile,
   setProfile,
+  getPharmacistName,
+  setPharmacistName,
   addArticle,
   getArticles,
   getArticle,

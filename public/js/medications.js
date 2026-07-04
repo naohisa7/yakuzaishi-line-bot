@@ -20,9 +20,15 @@
     return;
   }
 
+  const pharmacistBanner = document.getElementById('pharmacist-name-banner');
+
   async function loadMedications() {
     const res = await fetch('/api/medications');
     const data = await res.json();
+    if (data.pharmacistName) {
+      pharmacistBanner.textContent = `👤 担当かかりつけ薬剤師：${data.pharmacistName}`;
+      pharmacistBanner.style.display = 'block';
+    }
     render(data.medications || []);
   }
 

@@ -13,6 +13,18 @@
   const broadcastTemplatesEl = document.getElementById('broadcast-templates');
   const broadcastInput = document.getElementById('broadcast-input');
   const broadcastSendButton = document.getElementById('broadcast-send-button');
+  const interventionType = document.getElementById('intervention-type');
+  const interventionNote = document.getElementById('intervention-note');
+  const interventionAddButton = document.getElementById('intervention-add-button');
+  const interventionList = document.getElementById('intervention-list');
+
+  const INTERVENTION_LABELS = {
+    follow_up: '📞 フォローアップ（電話等）',
+    remaining_med: '💊 残薬調整',
+    adverse_event: '⚠️ 有害事象防止（処方変更）',
+    visit: '🏠 訪問',
+    other: '📝 その他',
+  };
 
   const POLL_INTERVAL_MS = 4000;
 
@@ -171,6 +183,7 @@
     renderPatientList(patients.patients || []);
 
     await refreshThread();
+    await refreshInterventions();
     startPolling();
   }
 
@@ -180,6 +193,63 @@
     const data = await res.json();
     renderThread(data.messages || []);
   }
+
+  function renderInterventions(records) {
+    if (records.length === 0) {
+      interventionList.innerHTML = '<p style="color:var(--muted); font-size:13px;">まだ記録がありません。</p>';
+      return;
+    }
+
+    interventionList.innerHTML = '';
+    records.forEach((record) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'padding:8px 0; border-bottom:1px solid #EEE; font-size:14px;';
+
+      const date = new Date(record.recordedAt).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' });
+      const label = document.createElement('div');
+      label.style.fontWeight = 'bold';
+      label.textContent = INTERVENTION_LABELS[record.type] || record.type;
+
+      const meta = document.createElement('div');
+      meta.style.cssText = 'color:var(--muted); font-size:12px;';
+      meta.textContent = date + (record.note ? ' ・ ' + record.note : '');
+
+      row.appendChild(label);
+      row.appendChild(meta);
+      interventionList.appendChild(row);
+    });
+  }
+
+  async function refreshInterventions() {
+    if (!selectedId) return;
+    const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/interventions');
+    const data = await res.json();
+    renderInterventions(data.records || []);
+  }
+
+  interventionAddButton.addEventListener('click', async () => {
+    if (!selectedId) return;
+
+    interventionAddButton.disabled = true;
+    try {
+      const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/interventions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: interventionType.value, note: interventionNote.value.trim() }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        interventionNote.value = '';
+        await refreshInterventions();
+      } else {
+        window.alert(data.error || '記録できませんでした。');
+      }
+    } catch (err) {
+      window.alert('通信エラーが発生しました。');
+    } finally {
+      interventionAddButton.disabled = false;
+    }
+  });
 
   function startPolling() {
     clearInterval(pollTimer);

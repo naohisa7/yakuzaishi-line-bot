@@ -13,6 +13,7 @@ const { setPendingBroadcast, getPendingBroadcast, clearPendingBroadcast } = requ
 const { getPasscode, setPasscode } = require('./passcodeManager');
 const {
   setProfile,
+  setPharmacistName,
   addArticle,
   getArticles,
   findArticleByIdPrefix,
@@ -530,6 +531,17 @@ async function handleEvent(event, lineClient) {
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
         text: 'プロフィールを更新しました。ホームページの「プロフィール」ページに反映されています。',
+      });
+    }
+
+    // 「薬剤師名変更:氏名」でお薬手帳ページに表示するかかりつけ薬剤師名を更新
+    const pharmacistNameMatch = trimmedAdminMessage.match(/^薬剤師名変更[:：]\s*(.+)$/);
+    if (pharmacistNameMatch) {
+      const name = pharmacistNameMatch[1].trim();
+      await setPharmacistName(name);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `かかりつけ薬剤師名を更新しました。\n新しい名前：${name}\n（ホームページの「お薬手帳」ページに反映されます）`,
       });
     }
 

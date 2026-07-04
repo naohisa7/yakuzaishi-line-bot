@@ -23,9 +23,10 @@ const BROADCAST_TEMPLATES = require('./broadcastTemplates');
 const { enhanceImageToBase64 } = require('./imageEnhancer');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { registerSocket, unregisterSocket, popPendingMessages, sendToSession } = require('./wsManager');
-const { getProfile, getArticles, getArticle, addArticle, updateArticle, deleteArticle } = require('./contentManager');
+const { getProfile, getPharmacistName, getArticles, getArticle, addArticle, updateArticle, deleteArticle } = require('./contentManager');
 const { recordFeedback } = require('./feedbackLogManager');
 const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
+const { getInterventions, addIntervention } = require('./interventionRecordManager');
 const { generateVideoCallLink } = require('./videoCallLink');
 const { getAdminPasscode } = require('./adminPasscodeManager');
 const { createAdminSession, isValidAdminSession } = require('./adminSessionManager');
@@ -346,7 +347,8 @@ app.get('/medications', (req, res) => {
 app.get('/api/medications', requireWebSession, async (req, res) => {
   try {
     const medications = await getMedications(`web:${req.webSessionId}`);
-    res.json({ medications });
+    const pharmacistName = await getPharmacistName();
+    res.json({ medications, pharmacistName });
   } catch (err) {
     console.error('お薬手帳取得エラー:', err);
     res.status(500).json({ error: 'お薬手帳を取得できませんでした。' });
@@ -635,6 +637,37 @@ app.post('/api/admin/patients/:id/messages', requireAdminSession, async (req, re
   } catch (err) {
     console.error('チャットコンソール送信エラー:', err);
     res.status(500).json({ error: '送信できませんでした。' });
+  }
+});
+
+app.get('/api/admin/patients/:id/interventions', requireAdminSession, async (req, res) => {
+  try {
+    const target = req.params.id;
+    const patientKey = target.startsWith('web:') ? target : `line:${target}`;
+    const records = await getInterventions(patientKey);
+    res.json({ records });
+  } catch (err) {
+    console.error('対応記録取得エラー（コンソール）:', err);
+    res.status(500).json({ error: '対応記録を取得できませんでした。' });
+  }
+});
+
+app.post('/api/admin/patients/:id/interventions', requireAdminSession, async (req, res) => {
+  const target = req.params.id;
+  const type = (req.body.type || '').trim();
+  const note = (req.body.note || '').trim();
+  const validTypes = ['follow_up', 'remaining_med', 'adverse_event', 'visit', 'other'];
+  if (!validTypes.includes(type)) {
+    return res.status(400).json({ error: '対応の種類が正しくありません。' });
+  }
+
+  try {
+    const patientKey = target.startsWith('web:') ? target : `line:${target}`;
+    await addIntervention(patientKey, type, note);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('対応記録追加エラー（コンソール）:', err);
+    res.status(500).json({ error: '対応記録を保存できませんでした。' });
   }
 });
 
