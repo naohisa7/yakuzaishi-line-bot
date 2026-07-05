@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /admin
+Disallow: /console
+Disallow: /host
+Disallow: /host-guide
+Disallow: /api/
+
+Sitemap: https://yakuzaishi-line-bot.onrender.com/sitemap.xml
