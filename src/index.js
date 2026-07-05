@@ -573,6 +573,10 @@ app.get('/host-guide', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/host-guide.html'));
 });
 
+app.get('/host', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/host.html'));
+});
+
 /**
  * LINE・ホームページ両方の認証済み患者を、patientKey（line:<id> / web:<id>）付きで列挙する
  */
