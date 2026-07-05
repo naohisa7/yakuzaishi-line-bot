@@ -305,48 +305,88 @@
 
   let editingInterventionId = null;
 
+  function buildInterventionRow(record) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #EEE; font-size:14px;';
+
+    const date = new Date(record.recordedAt).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' });
+    const textWrap = document.createElement('div');
+    textWrap.style.flex = '1';
+
+    const label = document.createElement('div');
+    label.style.fontWeight = 'bold';
+    label.textContent = INTERVENTION_LABELS[record.type] || record.type;
+
+    const meta = document.createElement('div');
+    meta.style.cssText = 'color:var(--muted); font-size:12px;';
+    meta.textContent = date + (record.note ? ' ・ ' + record.note : '');
+
+    textWrap.appendChild(label);
+    textWrap.appendChild(meta);
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'resolution-btn resolution-yes';
+    editBtn.textContent = '編集';
+    editBtn.addEventListener('click', () => startEditIntervention(record));
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'resolution-btn resolution-no';
+    deleteBtn.textContent = '削除';
+    deleteBtn.addEventListener('click', () => deleteIntervention(record.id));
+
+    row.appendChild(textWrap);
+    row.appendChild(editBtn);
+    row.appendChild(deleteBtn);
+    return row;
+  }
+
   function renderInterventions(records) {
     if (records.length === 0) {
       interventionList.innerHTML = '<p style="color:var(--muted); font-size:13px;">まだ記録がありません。</p>';
       return;
     }
 
-    interventionList.innerHTML = '';
+    // 記録は新しい順に並んでいるので、月ごとにまとめても先頭（最新月）が自然に一番上になる
+    const groups = new Map();
     records.forEach((record) => {
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #EEE; font-size:14px;';
+      const monthKey = record.recordedAt.slice(0, 7); // "YYYY-MM"
+      if (!groups.has(monthKey)) groups.set(monthKey, []);
+      groups.get(monthKey).push(record);
+    });
 
-      const date = new Date(record.recordedAt).toLocaleString('ja-JP', { dateStyle: 'medium', timeStyle: 'short' });
-      const textWrap = document.createElement('div');
-      textWrap.style.flex = '1';
+    interventionList.innerHTML = '';
+    let isFirstGroup = true;
+    groups.forEach((groupRecords, monthKey) => {
+      const [year, month] = monthKey.split('-');
+      const monthLabel = `${year}年${parseInt(month, 10)}月（${groupRecords.length}件）`;
 
-      const label = document.createElement('div');
-      label.style.fontWeight = 'bold';
-      label.textContent = INTERVENTION_LABELS[record.type] || record.type;
+      const section = document.createElement('div');
+      section.className = 'intervention-month-group';
 
-      const meta = document.createElement('div');
-      meta.style.cssText = 'color:var(--muted); font-size:12px;';
-      meta.textContent = date + (record.note ? ' ・ ' + record.note : '');
+      const header = document.createElement('button');
+      header.type = 'button';
+      header.className = 'intervention-month-header';
 
-      textWrap.appendChild(label);
-      textWrap.appendChild(meta);
+      const body = document.createElement('div');
+      body.className = 'intervention-month-body';
+      const expanded = isFirstGroup; // 最新月だけ最初から開いておく
+      body.style.display = expanded ? 'block' : 'none';
+      header.textContent = monthLabel + (expanded ? ' ▾' : ' ▸');
 
-      const editBtn = document.createElement('button');
-      editBtn.type = 'button';
-      editBtn.className = 'resolution-btn resolution-yes';
-      editBtn.textContent = '編集';
-      editBtn.addEventListener('click', () => startEditIntervention(record));
+      header.addEventListener('click', () => {
+        const isOpen = body.style.display !== 'none';
+        body.style.display = isOpen ? 'none' : 'block';
+        header.textContent = monthLabel + (isOpen ? ' ▸' : ' ▾');
+      });
 
-      const deleteBtn = document.createElement('button');
-      deleteBtn.type = 'button';
-      deleteBtn.className = 'resolution-btn resolution-no';
-      deleteBtn.textContent = '削除';
-      deleteBtn.addEventListener('click', () => deleteIntervention(record.id));
+      groupRecords.forEach((record) => body.appendChild(buildInterventionRow(record)));
 
-      row.appendChild(textWrap);
-      row.appendChild(editBtn);
-      row.appendChild(deleteBtn);
-      interventionList.appendChild(row);
+      section.appendChild(header);
+      section.appendChild(body);
+      interventionList.appendChild(section);
+      isFirstGroup = false;
     });
   }
 

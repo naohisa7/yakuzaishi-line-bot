@@ -8,8 +8,8 @@ const redis = require('./redisClient');
  * patientKeyはLINEなら `line:<userId>`、ホームページなら `web:<sessionId>` の形式で渡す
  */
 
-const MAX_ENTRIES = 50;
-const RECORD_TTL_SECONDS = 365 * 24 * 60 * 60; // 1年
+const MAX_ENTRIES = 200;
+const RECORD_TTL_SECONDS = 5 * 365 * 24 * 60 * 60; // 5年
 
 function recordKey(patientKey) {
   return `interventions:${patientKey}`;

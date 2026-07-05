@@ -486,6 +486,32 @@ label {
   color: #B0335A;
 }
 
+.intervention-month-group {
+  border-bottom: 1px solid #EEE;
+}
+
+.intervention-month-group:last-child {
+  border-bottom: none;
+}
+
+.intervention-month-header {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 10px 0;
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.intervention-month-body .card-row:last-child,
+.intervention-month-body > div:last-child {
+  border-bottom: none;
+}
+
 .console-chat {
   flex: 1;
   min-width: 0;
