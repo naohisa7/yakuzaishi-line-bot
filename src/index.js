@@ -117,7 +117,34 @@ app.use(express.json());
 // ────────────────────────────────────
 // ホームページ（患者さん向けチャット）
 // ────────────────────────────────────
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_IMAGE_MIME_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('INVALID_FILE_TYPE'));
+    }
+  },
+});
+
+// アップロードエラー（画像以外のファイル・サイズ超過など）を、他のAPIと同じJSON形式で返す
+function uploadImage(req, res, next) {
+  upload.single('image')(req, res, (err) => {
+    if (!err) return next();
+
+    const message =
+      err.message === 'INVALID_FILE_TYPE'
+        ? '画像ファイル（JPEG・PNG・WebP・HEIC）のみ添付できます。'
+        : err.code === 'LIMIT_FILE_SIZE'
+        ? 'ファイルサイズは10MBまでにしてください。'
+        : 'ファイルを読み込めませんでした。';
+    res.status(400).json({ error: message });
+  });
+}
 
 app.get('/patient', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/patient.html'));
@@ -214,7 +241,7 @@ function buildWebReplyButtonMessage(sessionId) {
   };
 }
 
-app.post('/api/chat', requireWebSession, upload.single('image'), async (req, res) => {
+app.post('/api/chat', requireWebSession, uploadImage, async (req, res) => {
   if (!req.webSession.consented) {
     return res.status(403).json({ error: 'プライバシーポリシーへの同意が必要です。' });
   }
