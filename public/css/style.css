@@ -428,6 +428,10 @@ label {
   padding: 8px 12px 0;
 }
 
+.container.wide {
+  max-width: 1080px;
+}
+
 .console-layout {
   display: flex;
   gap: 16px;
