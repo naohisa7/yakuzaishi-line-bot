@@ -12,6 +12,8 @@
   --rose-dark: #D9527A;
   --sky: #4FA3D1;
   --sky-dark: #2F6B9E;
+  --warm-bg: #FDF6EC;
+  --warm-line: #F1E4CF;
 }
 
 * {
@@ -22,7 +24,7 @@ body {
   position: relative;
   margin: 0;
   font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
-  background: var(--bg);
+  background: var(--warm-bg);
   color: var(--text);
 }
 
@@ -622,8 +624,13 @@ label {
   padding: 64px 20px 90px;
   text-align: center;
   color: #fff;
-  background: linear-gradient(120deg, #2F9E8F, #1F6F65, #3AB8A6, #1F6F65);
-  background-size: 300% 300%;
+  background-image:
+    radial-gradient(circle at 85% 0%, rgba(240, 169, 58, 0.30), transparent 55%),
+    linear-gradient(120deg, rgba(47, 158, 143, 0.88), rgba(31, 111, 101, 0.90), rgba(58, 184, 166, 0.88), rgba(31, 111, 101, 0.90)),
+    url("/images/hero-pharmacy.jpg");
+  background-size: cover, 300% 300%, cover;
+  background-position: center, 0% 50%, center;
+  background-repeat: no-repeat;
   animation: gradientShift 10s ease infinite;
   perspective: 1000px;
 }
@@ -839,6 +846,42 @@ label {
   width: 100%;
   height: 60px;
   display: block;
+}
+
+.photo-showcase {
+  padding: 8px 20px 36px;
+}
+
+.photo-showcase h2 {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0 0 20px;
+  color: var(--brand-dark);
+}
+
+.photo-showcase-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.photo-showcase-item {
+  position: relative;
+  overflow: hidden;
+  height: 190px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #F4E3C8, var(--warm-line));
+  box-shadow: 0 6px 18px rgba(31, 111, 101, 0.10);
+  border: 1px solid rgba(31, 111, 101, 0.08);
+}
+
+.photo-showcase-item img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .card-icon {
@@ -1518,8 +1561,13 @@ a.related-card .related-arrow {
   color: #fff;
   padding: 40px 20px 52px;
   text-align: center;
-  background: linear-gradient(120deg, #2F9E8F, #1F6F65, #3AB8A6, #1F6F65);
-  background-size: 300% 300%;
+  background-image:
+    radial-gradient(circle at 85% 0%, rgba(240, 169, 58, 0.28), transparent 55%),
+    linear-gradient(120deg, rgba(47, 158, 143, 0.90), rgba(31, 111, 101, 0.92), rgba(58, 184, 166, 0.90), rgba(31, 111, 101, 0.92)),
+    url("/images/header-texture.jpg");
+  background-size: cover, 300% 300%, cover;
+  background-position: center, 0% 50%, center;
+  background-repeat: no-repeat;
   animation: gradientShift 10s ease infinite;
 }
 
