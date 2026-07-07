@@ -24,6 +24,7 @@ const { addMessage: addWebMessage } = require('./webConversationManager');
 const { sendToSession } = require('./wsManager');
 const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
 const { generateVideoCallLink } = require('./videoCallLink');
+const { formatPatientMessages } = require('./escalationSummary');
 const { setAdminPasscode } = require('./adminPasscodeManager');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
@@ -358,10 +359,13 @@ async function fetchImageBase64(lineClient, messageId) {
 
 /**
  * 薬剤師への通知メッセージを生成
+ * 直前の1件だけでは文脈が分からないため、会話履歴に残っている
+ * 患者さんの発言を時系列ですべて載せる（履歴は直近約5往復に丸め済み）
  */
-async function buildEscalationMessage(lineClient, userId, userMessage, videoLink) {
+async function buildEscalationMessage(lineClient, userId, userMessage, videoLink, history) {
   const patientName = await getPatientName(lineClient, userId);
   const videoLine = videoLink ? `\n📹 ビデオ通話で参加する場合：\n${videoLink}` : '';
+  const messagesSummary = formatPatientMessages(history) || userMessage;
 
   return [
     {
@@ -370,8 +374,8 @@ async function buildEscalationMessage(lineClient, userId, userMessage, videoLink
 ━━━━━━━━━━━━━━
 👤 ${patientName}
 ━━━━━━━━━━━━━━
-💬 相談内容：
-${userMessage}
+💬 ご相談の流れ（患者さんの発言）：
+${messagesSummary}
 ━━━━━━━━━━━━━━
 ⚠️ チャットボットでは対応が難しい内容です。${videoLine}`,
     },
@@ -800,7 +804,8 @@ ${videoLink}`,
         lineClient,
         userId,
         isImage ? '（お薬・お薬手帳の写真が送信されました）' : userMessage,
-        escalationVideoLink
+        escalationVideoLink,
+        history
       );
       await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, escalationMsg);
       console.log(`[ESCALATE] userId: ${userId} の相談を薬剤師に通知しました`);

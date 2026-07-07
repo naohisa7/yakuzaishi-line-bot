@@ -29,6 +29,7 @@ const { getMedications, addMedication, removeMedication } = require('./medicatio
 const { getInterventions, addIntervention, updateIntervention, removeIntervention } = require('./interventionRecordManager');
 const { getReminders, addReminder, removeReminder, listReminderPatientKeys, markSent } = require('./reminderManager');
 const { generateVideoCallLink } = require('./videoCallLink');
+const { formatPatientMessages } = require('./escalationSummary');
 const { getAdminPasscode } = require('./adminPasscodeManager');
 const { createAdminSession, isValidAdminSession } = require('./adminSessionManager');
 
@@ -295,6 +296,8 @@ app.post('/api/chat', requireWebSession, uploadImage, async (req, res) => {
 
     if (needsEscalation && PHARMACIST_LINE_USER_ID) {
       const patientName = req.webSession.patientName || '患者さん';
+      const messagesSummary =
+        formatPatientMessages(history) || message || '（画像が送信されました）';
       await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
         {
           type: 'text',
@@ -302,8 +305,8 @@ app.post('/api/chat', requireWebSession, uploadImage, async (req, res) => {
 ━━━━━━━━━━━━━━
 👤 ${patientName}（ホームページ）
 ━━━━━━━━━━━━━━
-💬 相談内容：
-${message || '（画像が送信されました）'}
+💬 ご相談の流れ（患者さんの発言）：
+${messagesSummary}
 ━━━━━━━━━━━━━━
 ⚠️ チャットボットでは対応が難しい内容です。
 📹 ビデオ通話で参加する場合：
