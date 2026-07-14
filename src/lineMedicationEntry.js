@@ -1,10 +1,12 @@
-const { searchDrugs, MIN_QUERY_LENGTH } = require('./drugMaster');
+const { searchDrugs, matchDrugName, stripManufacturer, MIN_QUERY_LENGTH } = require('./drugMaster');
+const { extractMedicationsFromImage } = require('./claudeHandler');
 const { addMedications, SOURCE_MANUAL, SOURCE_PHARMACIST } = require('./medicationRecordManager');
 const {
   getEntry,
   startEntry,
   setCandidates,
   addPending,
+  appendPending,
   removePending,
   clearEntry,
 } = require('./medicationEntryManager');
@@ -81,7 +83,7 @@ function promptMessage(session, lead) {
       : '（メーカー名は入力不要です）';
 
   return textMessage(
-    `${forWhom}${lead}\n\nお薬の名前を${MIN_QUERY_LENGTH}文字以上で送ってください。${makerNote}` +
+    `${forWhom}${lead}\n\nお薬の名前を${MIN_QUERY_LENGTH}文字以上で送ってください。${makerNote}\n📷 処方箋やお薬手帳の写真を送っていただくこともできます。` +
       pendingSummary(session.pending),
     controlItems(session.pending.length)
   );
@@ -201,6 +203,49 @@ async function handleCancel(lineUserId) {
 }
 
 /**
+ * 登録セッション中に送られた画像（処方箋・お薬手帳・薬のパッケージ）を読み取る
+ *
+ * 読み取った結果はそのまま保存せず、登録予定リストに積むだけにする。
+ * 必ず本人（患者さん・薬剤師）が内容を確認してから登録ボタンを押す流れにすることで、
+ * AIの誤読をそのままお薬手帳に残さないようにしている（薬剤師コンソールと同じ考え方）。
+ *
+ * @returns {Promise<Array|null>} 返信メッセージ。セッション中でなければ null
+ */
+async function handleImage(lineUserId, imageBase64) {
+  const session = await getEntry(lineUserId);
+  if (!session) return null;
+
+  const { names, note } = await extractMedicationsFromImage(imageBase64);
+
+  if (names.length === 0) {
+    const reason = note || '明るい場所で、文字にピントを合わせて撮り直してください。';
+    return [promptMessage(session, `📷 写真から薬品名を読み取れませんでした。\n${reason}`)];
+  }
+
+  // 医薬品マスタの正式名称に直す。患者さんの手帳にはメーカー名を入れない
+  const matched = names.map((name) => matchDrugName(name));
+  const resolved = matched.map((drug) =>
+    session.includeManufacturer ? drug.name : stripManufacturer(drug.name)
+  );
+
+  const before = session.pending.length;
+  const updated = await appendPending(lineUserId, session, resolved);
+  const added = updated.pending.length - before;
+
+  // マスタに載っていない名前は誤読の可能性があるため、本人に気づいてもらう
+  const unmatched = matched.filter((drug) => !drug.matched).map((drug) => drug.name);
+
+  const lines = [`📷 写真から${added}件を登録予定に追加しました。`];
+  if (unmatched.length > 0) {
+    lines.push(`⚠️ お薬の一覧に見つからない名前があります（読み間違いの可能性）：${unmatched.join('、')}`);
+  }
+  if (note) lines.push(`📝 ${note}`);
+  lines.push('内容をご確認のうえ、登録してください。');
+
+  return [promptMessage(updated, lines.join('\n'))];
+}
+
+/**
  * 登録セッション中のテキストメッセージを処理する
  * @returns {Promise<Array|null>} 返信メッセージ。セッション中でなければ null
  */
@@ -251,5 +296,6 @@ module.exports = {
   START_COMMAND,
   start,
   handleText,
+  handleImage,
   handlePostback,
 };

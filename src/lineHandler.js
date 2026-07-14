@@ -480,6 +480,18 @@ async function handleEvent(event, lineClient) {
   const isImage = event.message.type === 'image';
   const userMessage = isImage ? null : event.message.text;
 
+  // -2. お薬手帳の登録中に写真が送られたら、そこから薬品名を読み取って登録予定に積む
+  //     （患者さん・薬剤師 共通。AIチャットや患者さんへの転送より前に処理しないと横取りされる）
+  if (isImage) {
+    const imageBase64 = await fetchImageBase64(lineClient, event.message.id);
+    const medicationReply = await medicationEntry.handleImage(userId, imageBase64);
+    if (medicationReply) {
+      return lineClient.replyMessage(event.replyToken, medicationReply);
+    }
+    // 登録中でなければ、これまでどおりAIチャットに流す（下でもう一度取得しない）
+    event.__imageBase64 = imageBase64;
+  }
+
   // -1. 薬剤師からの一斉送信コマンド（フォローアップ等）
   if (!isImage && PHARMACIST_LINE_USER_ID && userId === PHARMACIST_LINE_USER_ID) {
     const trimmedAdminMessage = userMessage.trim();
@@ -867,7 +879,8 @@ ${videoLink}`,
     // 4. 会話履歴にユーザーメッセージ（または画像）を追加
     let userContent;
     if (isImage) {
-      const imageBase64 = await fetchImageBase64(lineClient, event.message.id);
+      // お薬手帳の登録チェックで取得済みなら使い回す（LINEから二重にダウンロードしない）
+      const imageBase64 = event.__imageBase64 || (await fetchImageBase64(lineClient, event.message.id));
       userContent = [
         { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 } },
         { type: 'text', text: 'この薬、または お薬手帳の写真です。商品名、ジェネリックであればメーカー名、市販薬であれば有効成分、用法用量を確認して教えてください。一包化された裸錠の場合は、薬剤名を断定せず、見えている刻印や特徴を伝えた上で薬剤師に確認してもらってください。' },

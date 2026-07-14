@@ -75,6 +75,22 @@ async function addPending(lineUserId, session, index) {
   return { session, name, duplicated: false };
 }
 
+/**
+ * 複数のお薬をまとめて登録予定リストに積む（写真から読み取ったときに使う）
+ * すでに入っているお薬は重複して積まない
+ */
+async function appendPending(lineUserId, session, names) {
+  for (const raw of names) {
+    const name = (raw || '').trim();
+    if (!name || session.pending.includes(name)) continue;
+    session.pending.push(name);
+  }
+
+  session.candidates = []; // 写真から積んだら、直前の検索候補は閉じる
+  await saveEntry(lineUserId, session);
+  return session;
+}
+
 /** 登録予定リストから1件取り消す */
 async function removePending(lineUserId, session, index) {
   const name = session.pending[index];
@@ -94,6 +110,7 @@ module.exports = {
   startEntry,
   setCandidates,
   addPending,
+  appendPending,
   removePending,
   clearEntry,
 };

@@ -40,8 +40,9 @@ LINE公式アカウント＋ホームページで、患者さんの薬相談にA
   - 薬剤師の登録先は**担当患者のみ**（`resolveManagedPatientKey`が`/api/admin/patients`の一覧に無いIDを弾く）
   - **写真からの登録（薬剤師のみ）**：`POST /api/admin/patients/:id/medications/scan`に処方箋等の画像を送ると、`extractMedicationsFromImage`（claudeHandler）が薬品名を読み取り、`matchDrugName`（drugMaster）でマスタの正式名称に正規化して返す。**この時点では保存しない**——結果は「登録するお薬」リストに積まれるだけで、薬剤師が確認して登録ボタンを押して初めて保存される（AIの誤読をそのまま記録しないため）。マスタに該当が無い名前は`matched:false`で返し、画面で「誤読の可能性」と警告する
   - 検索〜まとめて登録のUIは患者用`/medications`と薬剤師用`/console`で`drug-picker.js`を共用
-  - **LINEでも登録できる**（`lineMedicationEntry.js` + `medicationEntryManager.js`）。「お薬手帳に登録」で開始→3文字以上で検索→クイックリプライのボタン（または番号）で選択→繰り返し→「登録する」でまとめて保存。**薬剤師は返信モード中**に同じコマンドを送ると、その患者さんの手帳にメーカー名込みで登録できる。会話の状態はRedis（30分TTL）に持つ。
-    - **順序が重要**：登録セッション中の入力は、薬剤師の「返信転送」より前・患者のAIチャットより前に処理すること（後ろに置くと入力が横取りされる）
+  - **LINEでも登録できる**（`lineMedicationEntry.js` + `medicationEntryManager.js`）。「お薬手帳に登録」で開始→3文字以上で検索→クイックリプライのボタン（または番号）で選択→繰り返し→「登録する」でまとめて保存。**登録中に処方箋等の写真を送ると、AIが読み取って登録予定に積む**（`handleImage`。これも保存はせず、確認してから登録）。**薬剤師は返信モード中**に同じコマンドを送ると、その患者さんの手帳にメーカー名込みで登録できる。会話の状態はRedis（30分TTL）に持つ。
+    - **順序が重要**：登録セッション中の入力は、テキストも画像も、薬剤師の「返信転送」より前・患者のAIチャットより前に処理すること（後ろに置くと入力が横取りされる）
+    - 写真の取得（`fetchImageBase64`）は登録チェックで一度だけ行い、AIチャットに流す場合は`event.__imageBase64`で使い回す（LINEから二重にダウンロードしない）
     - LINEのクイックリプライは**最大13個・ラベル20文字**まで。候補は10件に絞り、長い薬品名は省略して収めている
 - **SEO**：meta description・OGP・Pharmacy構造化データ（index.htmlのみ）・`robots.txt`・`sitemap.xml`・スタッフページへの`noindex`
 - **アップロード検証**：`/api/chat`の画像アップロードにmulter `fileFilter`（画像MIMEタイプのみ許可）＋`sharp`再エンコードで無害化
