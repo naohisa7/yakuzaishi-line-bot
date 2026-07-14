@@ -31,6 +31,7 @@ const {
 } = require('./medicationRecordManager');
 const { generateVideoCallLink } = require('./videoCallLink');
 const { formatPatientMessages } = require('./escalationSummary');
+const medicationEntry = require('./lineMedicationEntry');
 const { setAdminPasscode } = require('./adminPasscodeManager');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
@@ -287,7 +288,7 @@ async function broadcastToPatients(lineClient, text) {
  */
 function formatMedicationList(entries) {
   if (entries.length === 0) {
-    return 'まだお薬手帳に登録がありません。ホームページの「お薬手帳」から、お飲みになっているお薬を検索して登録できます。お薬の写真を送っていただいた場合も、確認できたものは記録されます。';
+    return 'まだお薬手帳に登録がありません。「お薬手帳に登録」と送っていただくと、お飲みになっているお薬を検索して登録できます。お薬の写真を送っていただいた場合も、確認できたものは記録されます。';
   }
 
   const toLines = (list) =>
@@ -363,7 +364,8 @@ async function handleSpecialCommands(text, userId) {
 ・「ヘルプ」→ このガイドを表示
 ・「家族登録」→ ご家族と連携するための番号を発行
 ・「介護者登録」→ 介護者と連携するための番号を発行
-・「お薬手帳を見る」→ 確認済みのお薬一覧を表示
+・「お薬手帳に登録」→ お薬を検索して登録
+・「お薬手帳を見る」→ 登録済みのお薬一覧を表示
 ・「お薬手帳から削除:薬品名」→ 一覧から削除
 ・「ビデオ通話」→ 担当薬剤師とビデオ通話で相談
 
@@ -419,17 +421,27 @@ ${messagesSummary}
  * メインのイベントハンドラ
  */
 async function handleEvent(event, lineClient) {
-  // 薬剤師がボタン（postback）からチャット返信を開始する場合
-  if (event.type === 'postback' && PHARMACIST_LINE_USER_ID && event.source.userId === PHARMACIST_LINE_USER_ID) {
-    const match = event.postback.data.match(/^reply:(U[0-9a-f]{32}|web:[0-9a-f-]{36})$/);
-    if (match) {
-      const target = match[1];
-      startReply(event.source.userId, target);
-      const patientName = await getReplyTargetName(lineClient, target);
-      return lineClient.replyMessage(event.replyToken, {
-        type: 'text',
-        text: `🟢【返信モード中：${patientName}さん】\nここから送るメッセージはすべて${patientName}さんに届きます。\n終了するときは「終了」と送信してください。`,
-      });
+  if (event.type === 'postback') {
+    const postbackUserId = event.source.userId;
+
+    // お薬手帳の登録中に、候補ボタン・登録ボタンが押された場合（患者さん・薬剤師 共通）
+    const medicationReply = await medicationEntry.handlePostback(postbackUserId, event.postback.data);
+    if (medicationReply) {
+      return lineClient.replyMessage(event.replyToken, medicationReply);
+    }
+
+    // 薬剤師がボタンからチャット返信を開始する場合
+    if (PHARMACIST_LINE_USER_ID && postbackUserId === PHARMACIST_LINE_USER_ID) {
+      const match = event.postback.data.match(/^reply:(U[0-9a-f]{32}|web:[0-9a-f-]{36})$/);
+      if (match) {
+        const target = match[1];
+        startReply(postbackUserId, target);
+        const patientName = await getReplyTargetName(lineClient, target);
+        return lineClient.replyMessage(event.replyToken, {
+          type: 'text',
+          text: `🟢【返信モード中：${patientName}さん】\nここから送るメッセージはすべて${patientName}さんに届きます。\n\n・「お薬手帳に登録」→ ${patientName}さんのお薬手帳にお薬を登録\n・「終了」→ 返信モードを終了`,
+        });
+      }
     }
     return;
   }
@@ -447,10 +459,28 @@ async function handleEvent(event, lineClient) {
   if (!isImage && PHARMACIST_LINE_USER_ID && userId === PHARMACIST_LINE_USER_ID) {
     const trimmedAdminMessage = userMessage.trim();
 
+    // お薬手帳の登録中は、その入力（検索語・番号）を最優先で処理する
+    // （返信モード中に始めるため、患者さんへの転送より前に判定しないと横取りされてしまう）
+    const medicationReply = await medicationEntry.handleText(userId, trimmedAdminMessage);
+    if (medicationReply) {
+      return lineClient.replyMessage(event.replyToken, medicationReply);
+    }
+
     // 返信モード中は、次のメッセージをそのまま患者さんに転送する（「終了」まで継続・最優先で処理）
     const replyTarget = getReplyTarget(userId);
     if (replyTarget) {
       const replyPatientName = await getReplyTargetName(lineClient, replyTarget);
+
+      // 返信モード中の患者さんのお薬手帳に登録する
+      if (trimmedAdminMessage === medicationEntry.START_COMMAND) {
+        const targetKey = replyTarget.startsWith('web:') ? replyTarget : `line:${replyTarget}`;
+        const messages = await medicationEntry.start(userId, {
+          targetKey,
+          targetName: replyPatientName,
+          isPharmacist: true,
+        });
+        return lineClient.replyMessage(event.replyToken, messages);
+      }
 
       if (trimmedAdminMessage === '終了' || trimmedAdminMessage === 'キャンセル') {
         clearReply(userId);
@@ -714,6 +744,22 @@ async function handleEvent(event, lineClient) {
 
   // 画像以外（テキスト）の場合のみ、特殊コマンド・フィードバックボタンを処理
   if (!isImage) {
+    // 0.5 お薬手帳の登録中は、その入力（検索語・番号）を最優先で処理する
+    //     （AIチャットに流れてしまわないよう、特殊コマンドより前に判定する）
+    const medicationReply = await medicationEntry.handleText(userId, userMessage);
+    if (medicationReply) {
+      return lineClient.replyMessage(event.replyToken, medicationReply);
+    }
+
+    if (userMessage.trim() === medicationEntry.START_COMMAND) {
+      const messages = await medicationEntry.start(userId, {
+        targetKey: `line:${userId}`,
+        targetName: await getPatientName(lineClient, userId),
+        isPharmacist: false,
+      });
+      return lineClient.replyMessage(event.replyToken, messages);
+    }
+
     // 1. 特殊コマンドチェック
     const commandReply = await handleSpecialCommands(userMessage, userId);
     if (commandReply) {
