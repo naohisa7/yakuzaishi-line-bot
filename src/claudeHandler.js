@@ -42,10 +42,12 @@ const SYSTEM_PROMPT = `あなたは経験豊富な薬剤師のアシスタント
 - 撮り直しても判読できない、複数の薬剤が写っていて判別が困難、または患者さんが撮影が難しいと伝えてきた場合は、無理に断定・推測をせず「[ESCALATE]」を使い、担当薬剤師に確認してもらうよう伝えてください
 
 【お薬手帳への保存タグ（[SAVE_DRUG:薬品名]）の使い方】
-- 会話の中で実在する薬の商品名がはっきり確定した場合は、たとえ患者さんがテキストで直接その名前を伝えてきただけであっても、必ず回答の末尾に [SAVE_DRUG:薬品名] というタグを付けてください（写真から読み取った場合も同様です。複数ある場合は [SAVE_DRUG:薬品名A][SAVE_DRUG:薬品名B] のように複数付けられます）
 - このタグは患者さん向けの文章には表示されず、システムが自動的に「お薬手帳」に記録するために使われます
-- 一包化の裸錠のように薬剤名を断定できない場合や、打ち間違い・聞き間違いの可能性があり患者さんへの確認待ちの段階では、絶対にこのタグを使わないでください（確定していない薬を記録してしまうと危険です）
-- すでに「この患者さんが過去に確認済みのお薬」として伝えられている薬については、重複して付ける必要はありません
+- **写真から薬剤を読み取れた場合にのみ** 使ってください。複数ある場合は [SAVE_DRUG:薬品名A][SAVE_DRUG:薬品名B] のように複数付けられます
+- **患者さんがテキストで薬の名前を伝えてきただけの場合は、絶対にこのタグを使わないでください。** テキストでの言及は「その薬について質問しているだけ」で実際には服用していない場合があり、また規格（mg等）も分からないためです。テキストでお薬手帳に追加したい患者さんには、ホームページの「お薬手帳」ページから薬を検索してご自身で登録できることを案内してください
+- **規格（〇〇mg、〇〇％ など）まで写真から読み取れた場合のみ** タグを付け、必ず規格を含んだ正式名称で記録してください（例：[SAVE_DRUG:アムロジピン錠5mg]）。規格が読み取れない場合はタグを付けないでください
+- 一包化の裸錠のように薬剤名を断定できない場合も、絶対にこのタグを使わないでください（確定していない薬を記録してしまうと危険です）
+- すでに「この患者さんのお薬」として伝えられている薬については、重複して付ける必要はありません
 
 【[ESCALATE]タグの使い方】
 以下の状況では、回答の末尾に必ず [ESCALATE] を付けてください：
@@ -69,23 +71,52 @@ const SYSTEM_PROMPT = `あなたは経験豊富な薬剤師のアシスタント
 - LINEでのやり取りなので、1回の返信は300文字以内を目安にする`;
 
 /**
+ * 直近の患者さんの発言が画像を含むかどうかを判定する
+ * お薬手帳への自動記録を「写真から読み取った場合のみ」に限定するために使う
+ */
+function lastUserMessageHasImage(history) {
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].role !== 'user') continue;
+    const content = history[i].content;
+    return Array.isArray(content) && content.some((part) => part.type === 'image');
+  }
+  return false;
+}
+
+/**
+ * お薬手帳を、出所（写真で確認済み／患者さんの自己申告）が分かる形でプロンプトに整形する
+ */
+function buildMedicationsSection(knownMedications) {
+  if (knownMedications.length === 0) return '';
+
+  const lines = knownMedications
+    .map((m) => {
+      const label =
+        m.source === 'manual'
+          ? '（患者さんご自身が登録／自己申告）'
+          : m.source === 'photo'
+          ? '（写真で確認済み）'
+          : '（出所不明・要確認）';
+      return `・${m.name} ${label}`;
+    })
+    .join('\n');
+
+  return `\n\n【この患者さんのお薬（お薬手帳）】\n${lines}
+会話の文脈からこれらのお薬について話していると判断できる場合は、再度名前を尋ねずに活用してください。
+ただし「患者さんご自身が登録／自己申告」「出所不明・要確認」のお薬は、薬剤師が確認したものではありません。用法用量の変更や、副作用・相互作用など安全性に関わる重要な判断をする際は、その内容を前提にせず、必ず現物や処方内容を確認するか[ESCALATE]してください。`;
+}
+
+/**
  * Claudeに問い合わせて回答を取得
  * @param {Array} history - 会話履歴
- * @param {{name: string}[]} knownMedications - この患者さんが過去に確認済みのお薬（お薬手帳）
+ * @param {{name: string, source?: string}[]} knownMedications - この患者さんのお薬（お薬手帳）
  * @returns {{ message: string, needsEscalation: boolean, savedDrugs: string[] }}
  */
 async function askClaude(history, knownMedications = []) {
-  const medsSection =
-    knownMedications.length > 0
-      ? `\n\n【この患者さんが過去に確認済みのお薬（お薬手帳）】\n${knownMedications
-          .map((m) => `・${m.name}`)
-          .join('\n')}\n上記は商品名まで確認済みのお薬です。会話の文脈からこれらのお薬について話していると判断できる場合は、再度写真や名前を尋ねずにそのまま活用してください。`
-      : '';
-
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
     max_tokens: 1000,
-    system: SYSTEM_PROMPT + medsSection,
+    system: SYSTEM_PROMPT + buildMedicationsSection(knownMedications),
     messages: history,
   });
 
@@ -93,7 +124,13 @@ async function askClaude(history, knownMedications = []) {
   const needsEscalation = fullMessage.includes('[ESCALATE]');
 
   // [SAVE_DRUG:薬品名] タグを抽出してから、患者向けメッセージから除去
-  const savedDrugs = [...fullMessage.matchAll(/\[SAVE_DRUG:\s*([^\]]+)\]/g)].map((m) => m[1].trim());
+  //
+  // 写真から読み取れた場合しかお薬手帳に記録しない。テキストで名前を言われただけでは
+  // 実際に服用しているか分からず規格も特定できないため、プロンプトで禁じるだけでなく
+  // ここでも必ず落とす（AIが指示に反してタグを出しても記録されないようにする二重の防御）
+  const savedDrugs = lastUserMessageHasImage(history)
+    ? [...fullMessage.matchAll(/\[SAVE_DRUG:\s*([^\]]+)\]/g)].map((m) => m[1].trim())
+    : [];
 
   // 患者向けメッセージから[ESCALATE]・[SAVE_DRUG:...]タグを除去
   let cleanMessage = fullMessage

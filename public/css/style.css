@@ -1388,6 +1388,12 @@ a.related-card .related-arrow {
   color: var(--brand);
 }
 
+/*
+ * スクロール表示前の .reveal-left / .reveal-right は要素を左右に48pxずらすため、
+ * モバイル幅では画面外にはみ出して横スクロールが発生してしまう。
+ * clip はスクロールコンテナを作らないので、上部ナビの position: sticky を壊さずに抑止できる
+ * （hidden にすると sticky が効かなくなるため使わないこと）
+ */
 .reveal-on-scroll {
   opacity: 0;
   transform: translateY(24px) scale(0.96);
@@ -1409,6 +1415,18 @@ a.related-card .related-arrow {
 .reveal-on-scroll.in-view {
   opacity: 1;
   transform: translate(0, 0) scale(1);
+}
+
+/*
+ * 狭い画面では左右への48pxのずらしが画面外にはみ出し、横スクロールが発生してしまう。
+ * （html/bodyへのoverflow-x指定はビューポートに伝播せず効かないため、原因側で断つ）
+ * 上下方向のフェードインに切り替えれば、見た目を保ったままはみ出しをなくせる。
+ */
+@media (max-width: 700px) {
+  .reveal-on-scroll.reveal-left,
+  .reveal-on-scroll.reveal-right {
+    transform: translateY(24px) scale(0.96);
+  }
 }
 
 .card {
@@ -1686,6 +1704,153 @@ a.article-card h3 {
 
 .medication-card .med-delete {
   align-self: flex-end;
+}
+
+/* お薬手帳：登録の出所を示すバッジ */
+.med-badge {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-bottom: 4px;
+}
+
+.med-badge-manual {
+  background: #E6F4F2;
+  color: var(--brand-dark);
+}
+
+.med-badge-photo {
+  background: #E8F0FE;
+  color: #1A56A0;
+}
+
+.med-badge-legacy {
+  background: #FDEFD9;
+  color: #9C6B0A;
+}
+
+.med-legacy-note {
+  font-size: 12px;
+  color: #9C6B0A;
+  margin: 4px 0 0;
+  line-height: 1.5;
+}
+
+/* お薬手帳：薬品名の検索と登録 */
+.drug-search-hint {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 12px;
+  line-height: 1.6;
+}
+
+.drug-search-box {
+  position: relative;
+}
+
+.drug-search-box input {
+  margin-bottom: 0;
+}
+
+.drug-search-status {
+  font-size: 12px;
+  color: var(--muted);
+  min-height: 18px;
+  padding: 6px 2px 0;
+}
+
+.drug-search-results {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  border: 1px solid #E5E7EB;
+  border-radius: 12px;
+  overflow: hidden auto;
+  max-height: 280px;
+  background: #fff;
+}
+
+.drug-search-results li + li {
+  border-top: 1px solid #F1F3F5;
+}
+
+.drug-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 15px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.drug-result-item:hover,
+.drug-result-item:focus-visible {
+  background: #E6F4F2;
+}
+
+.drug-result-name {
+  min-width: 0;
+}
+
+.drug-result-unit {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.drug-pending {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #EEE;
+}
+
+.drug-pending h4 {
+  margin: 0 0 10px;
+}
+
+.drug-pending-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drug-pending-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #E6F4F2;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.drug-pending-remove {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.drug-pending-remove:hover {
+  background: #FCE4EA;
+  color: #B0335A;
 }
 
 textarea {

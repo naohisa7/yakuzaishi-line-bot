@@ -22,7 +22,7 @@ const {
 const { getSession: getWebSession, listSessionIds, removeSessionId } = require('./webSessionManager');
 const { addMessage: addWebMessage } = require('./webConversationManager');
 const { sendToSession } = require('./wsManager');
-const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
+const { getMedications, addMedication, removeMedication, SOURCE_PHOTO } = require('./medicationRecordManager');
 const { generateVideoCallLink } = require('./videoCallLink');
 const { formatPatientMessages } = require('./escalationSummary');
 const { setAdminPasscode } = require('./adminPasscodeManager');
@@ -782,9 +782,10 @@ ${videoLink}`,
     // 6. 会話履歴にアシスタントの返信を追加
     addMessage(userId, 'assistant', message);
 
-    // 6.5 確実に特定できた薬があればお薬手帳に記録
+    // 6.5 写真から確実に特定できた薬があればお薬手帳に記録
+    //     （テキストで名前を言われただけのものは askClaude 側で除外済み）
     for (const drugName of savedDrugs) {
-      await addMedication(`line:${userId}`, drugName);
+      await addMedication(`line:${userId}`, drugName, SOURCE_PHOTO);
     }
 
     // 7. 患者さんへ返信

@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>お薬手帳 | かかりつけ薬剤師</title>
-<meta name="description" content="これまでに確認済みのお薬の一覧（デジタルお薬手帳）を確認できます。">
+<meta name="description" content="お飲みになっているお薬を検索して登録・管理できるデジタルお薬手帳です。">
 <link rel="canonical" href="https://yakuzaishi-line-bot.onrender.com/medications">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="かかりつけ薬剤師">
 <meta property="og:title" content="お薬手帳 | かかりつけ薬剤師">
-<meta property="og:description" content="これまでに確認済みのお薬の一覧（デジタルお薬手帳）を確認できます。">
+<meta property="og:description" content="お飲みになっているお薬を検索して登録・管理できるデジタルお薬手帳です。">
 <meta property="og:url" content="https://yakuzaishi-line-bot.onrender.com/medications">
 <meta property="og:image" content="https://yakuzaishi-line-bot.onrender.com/icons/icon-512.png">
 <meta name="twitter:card" content="summary">
@@ -39,7 +39,7 @@
   <span class="hero-deco deco-4" aria-hidden="true">💊</span>
   <span class="hero-deco deco-5" aria-hidden="true">🌿</span>
   <h1 class="reveal">📋 お薬手帳</h1>
-  <p class="reveal delay-1">これまでに確認済みのお薬の一覧です</p>
+  <p class="reveal delay-1">お飲みになっているお薬を登録・確認できます</p>
 </div>
 <div class="page-wave">
   <svg viewBox="0 0 500 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -49,6 +49,25 @@
 
 <div class="container" style="padding-bottom:0;">
   <div class="card" id="pharmacist-name-banner" style="display:none; text-align:center;"></div>
+</div>
+
+<div class="container" id="register-section" style="display:none; padding-bottom:0;">
+  <div class="card">
+    <h3>➕ お薬を登録する</h3>
+    <p class="drug-search-hint">お薬の名前を<strong>3文字以上</strong>入力すると候補が出ます。選んだあと、続けて次のお薬を検索できます。</p>
+
+    <div class="drug-search-box">
+      <input type="text" id="drug-search-input" placeholder="例：アムロジピン、たけきゃぶ" autocomplete="off">
+      <div id="drug-search-status" class="drug-search-status"></div>
+      <ul id="drug-search-results" class="drug-search-results" hidden></ul>
+    </div>
+
+    <div id="drug-pending" class="drug-pending" hidden>
+      <h4>登録するお薬（<span id="drug-pending-count">0</span>件）</h4>
+      <ul id="drug-pending-list" class="drug-pending-list"></ul>
+      <button class="btn" id="drug-register-button">この内容で登録する</button>
+    </div>
+  </div>
 </div>
 
 <div class="container" id="medication-list">読み込み中...</div>

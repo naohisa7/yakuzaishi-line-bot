@@ -25,7 +25,8 @@ const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { registerSocket, unregisterSocket, popPendingMessages, sendToSession } = require('./wsManager');
 const { getProfile, getPharmacistName, getArticles, getArticle, addArticle, updateArticle, deleteArticle } = require('./contentManager');
 const { recordFeedback } = require('./feedbackLogManager');
-const { getMedications, addMedication, removeMedication } = require('./medicationRecordManager');
+const { getMedications, addMedication, addMedications, removeMedication, SOURCE_PHOTO } = require('./medicationRecordManager');
+const { searchDrugs, MIN_QUERY_LENGTH } = require('./drugMaster');
 const { getInterventions, addIntervention, updateIntervention, removeIntervention } = require('./interventionRecordManager');
 const { getReminders, addReminder, removeReminder, listReminderPatientKeys, markSent } = require('./reminderManager');
 const { generateVideoCallLink } = require('./videoCallLink');
@@ -280,9 +281,10 @@ app.post('/api/chat', requireWebSession, uploadImage, async (req, res) => {
     const { message: replyText, needsEscalation, savedDrugs } = await askClaude(history, knownMedications);
     await addMessage(sessionId, 'assistant', replyText);
 
-    // 確実に特定できた薬があればお薬手帳に記録
+    // 写真から確実に特定できた薬があればお薬手帳に記録
+    // （テキストで名前を言われただけのものは askClaude 側で除外済み）
     for (const drugName of savedDrugs) {
-      await addMedication(`web:${sessionId}`, drugName);
+      await addMedication(`web:${sessionId}`, drugName, SOURCE_PHOTO);
     }
 
     const videoLink = needsEscalation ? generateVideoCallLink() : undefined;
@@ -387,6 +389,33 @@ app.get('/api/medications', requireWebSession, async (req, res) => {
   } catch (err) {
     console.error('お薬手帳取得エラー:', err);
     res.status(500).json({ error: 'お薬手帳を取得できませんでした。' });
+  }
+});
+
+// 医薬品マスタから薬品名（規格込み）の候補を検索する。3文字以上でのみ検索する
+app.get('/api/drugs/search', requireWebSession, (req, res) => {
+  const query = (req.query.q || '').trim();
+
+  if (query.length < MIN_QUERY_LENGTH) {
+    return res.json({ drugs: [], minLength: MIN_QUERY_LENGTH });
+  }
+
+  res.json({ drugs: searchDrugs(query), minLength: MIN_QUERY_LENGTH });
+});
+
+// 患者さんが選んだお薬をまとめて登録する
+app.post('/api/medications', requireWebSession, async (req, res) => {
+  const names = Array.isArray(req.body.names) ? req.body.names : [];
+  if (names.length === 0) {
+    return res.status(400).json({ error: '登録するお薬を選んでください。' });
+  }
+
+  try {
+    const added = await addMedications(`web:${req.webSessionId}`, names);
+    res.json({ ok: true, added });
+  } catch (err) {
+    console.error('お薬手帳登録エラー:', err);
+    res.status(500).json({ error: 'お薬を登録できませんでした。' });
   }
 });
 

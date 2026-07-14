@@ -29,6 +29,7 @@ LINE公式アカウント＋ホームページで、患者さんの薬相談にA
 
 ## 実装済み機能（新しい順）
 
+- **お薬手帳の登録（`drugMaster.js` + `data/drugs.json`）**：**テキストからの自動記録は廃止**。実際に服用しているか不明で規格も特定できないため、`[SAVE_DRUG]`タグは**写真から読み取った場合のみ**有効。プロンプトで禁じるだけでなく`askClaude`内で「直近のユーザー発言に画像が無ければ`savedDrugs`を空にする」コード側の防御も入れている（二重の安全策・絶対に外さないこと）。代わりに患者さんが`/medications`で薬品名を**3文字以上**検索→候補選択→繰り返し→まとめて登録できる。マスタは支払基金の公式医薬品マスター（19,279件、薬品名に規格を含む）を`scripts/build-drug-master.js`で`data/drugs.json`に変換して同梱。改定時はスクリプト内のURLを更新して再実行するだけ。レコードは`source`（`manual`/`photo`/未設定=`legacy`＝旧テキスト自動記録で要確認）を持ち、UIでバッジ表示する
 - **SEO**：meta description・OGP・Pharmacy構造化データ（index.htmlのみ）・`robots.txt`・`sitemap.xml`・スタッフページへの`noindex`
 - **アップロード検証**：`/api/chat`の画像アップロードにmulter `fileFilter`（画像MIMEタイプのみ許可）＋`sharp`再エンコードで無害化
 - **`/host`**：薬剤師用の入口ページ（3つのツールへのリンクカード）
@@ -60,6 +61,8 @@ Redis: `red-d933s79kh4rs739erea0`。ローカル開発機のIPはallowlist対象
 - LINE患者の会話履歴（`conversationManager.js`）はメモリ内のみ→再起動で消える。Web患者側（`webConversationManager.js`）はRedis永続化
 - 対応記録・リマインダーは全患者を毎回列挙して個別に問い合わせる設計（小規模運用前提、大量患者だと遅くなる可能性）
 - 服薬リマインダーは外部cronサービスの登録がユーザー自身の作業（`CRON_SECRET`をRender環境変数に設定＋cron-job.org等に登録）
+- お薬手帳の手動登録は`/medications`（Webセッション必須）でしか行えないため、**LINEしか使っていない患者さんは自分で登録できない**（HP側にも認証コードでログインしてもらう必要がある）
+- CSSの`.reveal-left`/`.reveal-right`は要素を左右に48pxずらすため、モバイルでは横スクロールが出る。`html`/`body`への`overflow-x`はビューポートに伝播せず効かないので、700px以下では縦方向のフェードに切り替えて回避している
 
 ## 会話の運び方（ユーザーの好み）
 
