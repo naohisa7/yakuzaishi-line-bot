@@ -27,8 +27,11 @@ LINE公式アカウント＋ホームページで、患者さんの薬相談にA
 
 `interventionRecordManager.js` / `medicationRecordManager.js` / `reminderManager.js` は全てこの規約に従う。`/console`のAPIでは、URLパスの`:id`は素のLINE userIdまたは`web:<uuid>`（`web:`プレフィックス付き）を受け取り、ルート内で`line:`を補って`patientKey`に変換している。
 
+**お薬手帳だけは例外：同一人物として紐づけると`line:`と`web:`で1冊を共有する**（`medicationBookLinkManager.js`）。`medicationRecordManager.js`の全公開関数が入口で`resolveBookKey()`を通してキーを「正となるキー（＝LINE側）」に解決するため、**呼び出し側は同期を一切意識しなくてよい**。この解決を通さずにRedisのお薬手帳を直接読み書きすると同期が壊れるので注意（読みだけ解決して書きを解決し忘れる、が一番危ない）。会話履歴・対応記録・リマインダーは従来どおり窓口ごとに別。
+
 ## 実装済み機能（新しい順）
 
+- **お薬手帳のLINE⇔HP同期（`medicationBookLinkManager.js`）**：同じ患者さんでもLINEとHPは別キーのため、放っておくと手帳が2冊になる。「同一人物」と紐づけると**1冊を共有**する（正となるキーはLINE側。Webの`sessionId`は再ログインで変わるため）。紐づけ方法は2つ：**薬剤師が`/console`**でWeb患者を選び、LINE患者の一覧から選ぶ／**患者さんがLINE**で「ホームページと連携」と送って6桁コードを発行し、`/medications`で入力する。紐づけ時に既存の2冊は**マージ**され（薬剤師の手帳／患者さんの手帳の区分は保たれる）、解除時は内容をweb側に**コピーしてから**外すので薬は消えない。認証解除（`deleteSession`）時は自動で紐づけも外す
 - **お薬手帳（`drugMaster.js` + `data/drugs.json` + `public/js/drug-picker.js`）**
   - **テキストからの自動記録は廃止**。実際に服用しているか不明で規格も特定できないため、`[SAVE_DRUG]`タグは**写真から読み取った場合のみ**有効。プロンプトで禁じるだけでなく`askClaude`内で「直近のユーザー発言に画像が無ければ`savedDrugs`を空にする」コード側の防御も入れている（二重の安全策・絶対に外さないこと）
   - **薬品名の検索**：支払基金の公式医薬品マスター（19,279件、薬品名に規格を含む）を`scripts/build-drug-master.js`で`data/drugs.json`に変換して同梱。改定時はスクリプト内のURLを更新して再実行するだけ。3文字以上・ひらがな可・前方一致優先
@@ -71,7 +74,7 @@ Redis: `red-d933s79kh4rs739erea0`。ローカル開発機のIPはallowlist対象
 - LINE患者の会話履歴（`conversationManager.js`）はメモリ内のみ→再起動で消える。Web患者側（`webConversationManager.js`）はRedis永続化
 - 対応記録・リマインダーは全患者を毎回列挙して個別に問い合わせる設計（小規模運用前提、大量患者だと遅くなる可能性）
 - 服薬リマインダーは外部cronサービスの登録がユーザー自身の作業（`CRON_SECRET`をRender環境変数に設定＋cron-job.org等に登録）
-- お薬手帳の手動登録は`/medications`（Webセッション必須）でしか行えないため、**LINEしか使っていない患者さんは自分で登録できない**（HP側にも認証コードでログインしてもらう必要がある）
+- **ホームページで認証し直す（＝新しいセッションになる）と、お薬手帳の紐づけは切れる**。`web:<sessionId>`が変わるため。再度紐づければ復旧する（薬剤師が`/console`から数クリック）。内容は失われない
 - CSSの`.reveal-left`/`.reveal-right`は要素を左右に48pxずらすため、モバイルでは横スクロールが出る。`html`/`body`への`overflow-x`はビューポートに伝播せず効かないので、700px以下では縦方向のフェードに切り替えて回避している
 
 ## 会話の運び方（ユーザーの好み）

@@ -218,6 +218,7 @@
     await refreshThread();
     await refreshInterventions();
     await refreshReminder();
+    await refreshMedicationLink();
     await refreshMedications();
     startPolling();
   }
@@ -304,6 +305,125 @@
       if (!res.ok) throw new Error('登録に失敗しました');
       await refreshMedications();
     },
+  });
+
+  // ────────────────────────────────
+  // お薬手帳の連携（LINEの患者さんとホームページの患者さんを同一人物として紐づける）
+  // ────────────────────────────────
+  const linkBox = document.getElementById('med-link-box');
+  const linkLinked = document.getElementById('med-link-linked');
+  const linkUnlinked = document.getElementById('med-link-unlinked');
+  const linkName = document.getElementById('med-link-name');
+  const linkSelect = document.getElementById('med-link-select');
+  const linkButton = document.getElementById('med-link-button');
+  const linkUnlinkButton = document.getElementById('med-link-unlink');
+  const linkStatus = document.getElementById('med-link-status');
+  const linkLineNote = document.getElementById('med-link-line-note');
+
+  // 連携欄の読み込みに失敗しても、チャット・対応記録・お薬手帳の表示までは巻き添えで
+  // 止めない（連携はあくまで付加機能なので、ここで例外を投げて全体を壊さないこと）
+  async function refreshMedicationLink() {
+    if (!selectedId) return;
+
+    linkStatus.textContent = '';
+
+    try {
+      const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/medication-link');
+      if (!res.ok) throw new Error('連携状況を取得できませんでした');
+      const data = await res.json();
+
+      // LINEの患者さんを開いているときは、紐づけ操作はホームページ側から行う（案内のみ出す）
+      if (data.type === 'line') {
+        linkBox.hidden = true;
+        linkLineNote.hidden = !data.linked;
+        if (data.linked) {
+          linkLineNote.textContent = `🔗 ${data.linkedName}（ホームページ）と同期中です。お薬手帳は1冊にまとまっています。`;
+        }
+        return;
+      }
+
+      linkLineNote.hidden = true;
+      linkBox.hidden = false;
+      linkLinked.hidden = !data.linked;
+      linkUnlinked.hidden = data.linked;
+
+      if (data.linked) {
+        linkName.textContent = data.linkedName;
+        return;
+      }
+
+      const candidates = data.lineCandidates || [];
+      linkSelect.innerHTML = '';
+
+      if (candidates.length === 0) {
+        const option = document.createElement('option');
+        option.textContent = 'LINEの患者さんがいません';
+        option.value = '';
+        linkSelect.appendChild(option);
+        linkButton.disabled = true;
+        return;
+      }
+
+      linkButton.disabled = false;
+      candidates.forEach((candidate) => {
+        const option = document.createElement('option');
+        option.value = candidate.id;
+        option.textContent = candidate.name;
+        linkSelect.appendChild(option);
+      });
+    } catch (err) {
+      linkBox.hidden = true;
+      linkLineNote.hidden = true;
+    }
+  }
+
+  linkButton.addEventListener('click', async () => {
+    const lineUserId = linkSelect.value;
+    if (!selectedId || !lineUserId) return;
+
+    if (!confirm(`「${selectedName}」さんと「${linkSelect.selectedOptions[0].textContent}」さん（LINE）を同一人物として紐づけます。お薬手帳が1冊にまとまります。よろしいですか？`)) {
+      return;
+    }
+
+    linkButton.disabled = true;
+    linkStatus.textContent = '紐づけています...';
+
+    try {
+      const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/medication-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lineUserId }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        linkStatus.textContent = data.error || '紐づけできませんでした。';
+        return;
+      }
+
+      await refreshMedicationLink();
+      await refreshMedications(); // 統合後のお薬手帳を読み直す
+    } catch (err) {
+      linkStatus.textContent = '紐づけできませんでした。';
+    } finally {
+      linkButton.disabled = false;
+    }
+  });
+
+  linkUnlinkButton.addEventListener('click', async () => {
+    if (!selectedId) return;
+    if (!confirm('連携を解除しますか？\nお薬手帳の内容は両方に残ります（以後は同期しません）。')) return;
+
+    linkUnlinkButton.disabled = true;
+    try {
+      await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/medication-link', {
+        method: 'DELETE',
+      });
+      await refreshMedicationLink();
+      await refreshMedications();
+    } finally {
+      linkUnlinkButton.disabled = false;
+    }
   });
 
   // 処方箋・お薬手帳の写真から薬品名を読み取る

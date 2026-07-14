@@ -68,6 +68,23 @@
       <button class="btn" id="drug-register-button">この内容で登録する</button>
     </div>
   </div>
+
+  <div class="card" id="line-link-card">
+    <h3>🔗 LINEと連携する</h3>
+    <div id="line-link-done" class="line-link-done" hidden>
+      ✅ LINEのお薬手帳と同期しています。<br>
+      LINEで登録したお薬もこちらに表示され、こちらで登録したお薬もLINEに反映されます。
+    </div>
+    <div id="line-link-form">
+      <p class="drug-search-hint">LINEでもお薬手帳をお使いの場合、連携すると<strong>1つのお薬手帳にまとまります</strong>。<br>
+        LINEのトークで「<strong>ホームページと連携</strong>」と送ると6桁のコードが届きますので、下に入力してください。</p>
+      <div class="line-link-row">
+        <input type="text" id="line-link-code" inputmode="numeric" maxlength="6" placeholder="6桁のコード" autocomplete="off">
+        <button class="btn" id="line-link-button">連携する</button>
+      </div>
+      <div id="line-link-status" class="drug-search-status"></div>
+    </div>
+  </div>
 </div>
 
 <div class="container" id="medication-list">読み込み中...</div>

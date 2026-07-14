@@ -103,6 +103,23 @@
 
           <div class="card" id="medication-panel" style="margin-top:16px;">
             <h4>📋 お薬手帳</h4>
+
+            <div class="med-link-box" id="med-link-box" hidden>
+              <div id="med-link-linked" hidden>
+                <p class="med-link-state">🔗 <strong id="med-link-name"></strong>（LINE）と同期中です。お薬手帳は1冊にまとまっています。</p>
+                <button type="button" class="resolution-btn resolution-no" id="med-link-unlink">連携を解除</button>
+              </div>
+              <div id="med-link-unlinked" hidden>
+                <p class="drug-search-hint">この患者さんがLINEも使っている場合、同一人物として紐づけるとお薬手帳が1冊にまとまり、どちらで登録しても同期します。</p>
+                <div class="med-link-row">
+                  <select id="med-link-select"></select>
+                  <button class="btn" id="med-link-button">同一人物として紐づける</button>
+                </div>
+              </div>
+              <div id="med-link-status" class="drug-search-status"></div>
+            </div>
+
+            <p class="med-link-state" id="med-link-line-note" hidden></p>
             <p class="drug-search-hint">薬品名を<strong>3文字以上</strong>入力すると候補が出ます。選んだあと続けて検索でき、最後にまとめて登録します。<br>薬剤師側は<strong>メーカー名（「トーワ」等）込みの正式名称</strong>で登録します（患者さん側の登録画面ではメーカー名は表示されません）。</p>
 
             <div class="drug-search-box">

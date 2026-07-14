@@ -54,6 +54,53 @@
     legacy: { text: '⚠️ 要確認', className: 'med-badge-legacy' },
   };
 
+  // ────────────────────────────────
+  // LINEとの連携（お薬手帳を1冊にまとめる）
+  // ────────────────────────────────
+  const linkForm = document.getElementById('line-link-form');
+  const linkDone = document.getElementById('line-link-done');
+  const linkCode = document.getElementById('line-link-code');
+  const linkButton = document.getElementById('line-link-button');
+  const linkStatus = document.getElementById('line-link-status');
+
+  function renderLinkState(linked) {
+    linkDone.hidden = !linked;
+    linkForm.hidden = linked;
+  }
+
+  linkButton.addEventListener('click', async () => {
+    const code = linkCode.value.trim();
+    if (!/^\d{6}$/.test(code)) {
+      linkStatus.textContent = '6桁のコードを入力してください。';
+      return;
+    }
+
+    linkButton.disabled = true;
+    linkStatus.textContent = '連携しています...';
+
+    try {
+      const res = await fetch('/api/medications/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        linkStatus.textContent = data.error || '連携できませんでした。';
+        return;
+      }
+
+      linkCode.value = '';
+      linkStatus.textContent = '';
+      await loadMedications(); // 統合後のお薬手帳を読み直す
+    } catch (err) {
+      linkStatus.textContent = '連携できませんでした。通信環境をご確認ください。';
+    } finally {
+      linkButton.disabled = false;
+    }
+  });
+
   async function loadMedications() {
     const res = await fetch('/api/medications');
     const data = await res.json();
@@ -61,6 +108,7 @@
       pharmacistBanner.textContent = `👤 担当かかりつけ薬剤師：${data.pharmacistName}`;
       pharmacistBanner.style.display = 'block';
     }
+    renderLinkState(!!data.linkedWithLine);
     render(data.medications || []);
   }
 

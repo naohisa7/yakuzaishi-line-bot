@@ -32,6 +32,10 @@ const {
 const { generateVideoCallLink } = require('./videoCallLink');
 const { formatPatientMessages } = require('./escalationSummary');
 const medicationEntry = require('./lineMedicationEntry');
+const {
+  generateLinkCode: generateMedicationLinkCode,
+  getLinkedWebKey,
+} = require('./medicationBookLinkManager');
 const { setAdminPasscode } = require('./adminPasscodeManager');
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
@@ -332,7 +336,27 @@ async function handleSpecialCommands(text, userId) {
 
   if (trimmed === 'お薬手帳を見る') {
     const entries = await getMedications(`line:${userId}`);
-    return [{ type: 'text', text: formatMedicationList(entries) }];
+    const linkedWeb = await getLinkedWebKey(`line:${userId}`);
+    const syncNote = linkedWeb
+      ? '\n\n🔗 ホームページのお薬手帳と同期中です（どちらで登録しても同じ内容になります）。'
+      : '';
+    return [{ type: 'text', text: formatMedicationList(entries) + syncNote }];
+  }
+
+  // ホームページのお薬手帳と同期するための連携コードを発行する
+  if (trimmed === 'ホームページと連携' || trimmed === 'ホームページと同期') {
+    const code = await generateMedicationLinkCode(`line:${userId}`);
+    return [
+      {
+        type: 'text',
+        text: `📋 お薬手帳をホームページと同期するためのコードです（10分間有効）。
+
+【${code}】
+
+ホームページの「お薬手帳」ページを開き、「LINEと連携する」欄にこのコードを入力してください。
+連携すると、LINEとホームページのお薬手帳が1つにまとまり、どちらで登録しても同じ内容になります。`,
+      },
+    ];
   }
 
   const medicationDeleteMatch = trimmed.match(/^お薬手帳から削除[:：]\s*(.+)$/);
@@ -367,6 +391,7 @@ async function handleSpecialCommands(text, userId) {
 ・「お薬手帳に登録」→ お薬を検索して登録
 ・「お薬手帳を見る」→ 登録済みのお薬一覧を表示
 ・「お薬手帳から削除:薬品名」→ 一覧から削除
+・「ホームページと連携」→ お薬手帳をホームページと同期
 ・「ビデオ通話」→ 担当薬剤師とビデオ通話で相談
 
 🚨 緊急の場合

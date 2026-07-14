@@ -1,8 +1,15 @@
 const redis = require('./redisClient');
+const { resolveBookKey } = require('./medicationBookLinkManager');
 
 /**
  * お薬手帳（患者ごとの服用薬の記録）を管理するモジュール（Redisに永続化）
  * patientKeyはLINEなら `line:<userId>`、ホームページなら `web:<sessionId>` の形式で渡す
+ *
+ * ★LINEとホームページの同期★
+ * 同一人物として紐づけ済みの患者さんは、LINE・ホームページのどちらから来ても
+ * 同じ1冊のお薬手帳を読み書きする。そのために、この下の公開関数はすべて入口で
+ * resolveBookKey() を通してキーを「正となるキー」に解決している。
+ * 呼び出し側（lineHandler・lineMedicationEntry・index.js）は何も意識しなくてよい。
  *
  * 各レコードは出所（source）を持ち、「薬剤師が作成したお薬手帳」と
  * 「患者さんが作成したお薬手帳」を分けて扱うために使う：
@@ -37,7 +44,8 @@ async function save(patientKey, list) {
 }
 
 async function getMedications(patientKey) {
-  const raw = await redis.get(recordKey(patientKey));
+  const bookKey = await resolveBookKey(patientKey);
+  const raw = await redis.get(recordKey(bookKey));
   const list = raw ? JSON.parse(raw) : [];
   // sourceを持たない古いレコードは legacy として返す（保存内容はそのまま）
   return list.map((m) => ({ ...m, source: m.source || SOURCE_LEGACY }));
@@ -60,7 +68,11 @@ async function addMedication(patientKey, name, source = SOURCE_PHOTO) {
  * @returns {number} 実際に追加された件数（同じ手帳に登録済みのものは数えない）
  */
 async function addMedications(patientKey, names, source = SOURCE_MANUAL) {
-  const list = await getMedications(patientKey);
+  // 読み書きの両方で同じキーを使うため、ここで解決したキーを以降で使い回す
+  // （読みだけ解決して書き込みを解決し忘れると、同期が壊れて手帳が2冊に分かれてしまう）
+  const bookKey = await resolveBookKey(patientKey);
+
+  const list = await getMedications(bookKey);
   const targetIsPharmacist = isPharmacistSource(source);
   let added = 0;
 
@@ -77,7 +89,7 @@ async function addMedications(patientKey, names, source = SOURCE_MANUAL) {
     added++;
   }
 
-  if (added > 0) await save(patientKey, list);
+  if (added > 0) await save(bookKey, list);
   return added;
 }
 
@@ -91,7 +103,9 @@ async function addMedications(patientKey, names, source = SOURCE_MANUAL) {
  * @returns {boolean} 実際に削除できたか
  */
 async function removeMedication(patientKey, name, scope) {
-  const list = await getMedications(patientKey);
+  const bookKey = await resolveBookKey(patientKey);
+
+  const list = await getMedications(bookKey);
   const removingPharmacistEntry = scope === 'pharmacist';
 
   const remaining = list.filter(
@@ -99,7 +113,7 @@ async function removeMedication(patientKey, name, scope) {
   );
 
   const removed = remaining.length < list.length;
-  if (removed) await save(patientKey, remaining);
+  if (removed) await save(bookKey, remaining);
   return removed;
 }
 

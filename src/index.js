@@ -34,6 +34,13 @@ const {
   SOURCE_PHARMACIST,
 } = require('./medicationRecordManager');
 const { searchDrugs, matchDrugName, MIN_QUERY_LENGTH } = require('./drugMaster');
+const {
+  linkBooks,
+  unlinkBooks,
+  getLinkedLineKey,
+  getLinkedWebKey,
+  resolveLinkCode,
+} = require('./medicationBookLinkManager');
 const { getInterventions, addIntervention, updateIntervention, removeIntervention } = require('./interventionRecordManager');
 const { getReminders, addReminder, removeReminder, listReminderPatientKeys, markSent } = require('./reminderManager');
 const { generateVideoCallLink } = require('./videoCallLink');
@@ -390,9 +397,13 @@ app.get('/guide', (req, res) => {
 
 app.get('/api/medications', requireWebSession, async (req, res) => {
   try {
-    const medications = await getMedications(`web:${req.webSessionId}`);
-    const pharmacistName = await getPharmacistName();
-    res.json({ medications, pharmacistName });
+    const webKey = `web:${req.webSessionId}`;
+    const [medications, pharmacistName, linkedLineKey] = await Promise.all([
+      getMedications(webKey),
+      getPharmacistName(),
+      getLinkedLineKey(webKey),
+    ]);
+    res.json({ medications, pharmacistName, linkedWithLine: !!linkedLineKey });
   } catch (err) {
     console.error('お薬手帳取得エラー:', err);
     res.status(500).json({ error: 'お薬手帳を取得できませんでした。' });
@@ -446,6 +457,33 @@ app.post('/api/medications/delete', requireWebSession, async (req, res) => {
   } catch (err) {
     console.error('お薬手帳削除エラー:', err);
     res.status(500).json({ ok: false });
+  }
+});
+
+// 患者さんが、LINEで発行した6桁コードを入力してお薬手帳を同期する
+app.post('/api/medications/link', requireWebSession, async (req, res) => {
+  const code = (req.body.code || '').trim();
+  if (!/^\d{6}$/.test(code)) {
+    return res.status(400).json({ error: '6桁の連携コードを入力してください。' });
+  }
+
+  try {
+    const lineKey = await resolveLinkCode(code);
+    if (!lineKey) {
+      return res
+        .status(400)
+        .json({ error: 'コードが正しくないか、有効期限（10分）が切れています。LINEで発行し直してください。' });
+    }
+
+    const result = await linkBooks(`web:${req.webSessionId}`, lineKey);
+    if (!result.ok) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json({ ok: true, merged: result.merged });
+  } catch (err) {
+    console.error('お薬手帳の連携エラー:', err);
+    res.status(500).json({ error: '連携できませんでした。' });
   }
 });
 
@@ -1002,6 +1040,102 @@ app.post(
   }
 );
 
+/**
+ * 薬剤師が、ホームページの患者さんとLINEの患者さんを同一人物として紐づける
+ * （紐づけるとお薬手帳が1冊に統合され、以後どちらから登録しても同期する）
+ */
+app.get('/api/admin/patients/:id/medication-link', requireAdminSession, async (req, res) => {
+  const target = req.params.id;
+
+  try {
+    const patients = await getAllPatientsWithNames();
+    if (!patients.some((p) => p.id === target)) {
+      return res.status(404).json({ error: '担当されている患者さんが見つかりません。' });
+    }
+
+    // 紐づけの相手候補（LINEの患者さん）と、現在の紐づけ状況を返す
+    const lineCandidates = patients
+      .filter((p) => p.type === 'line')
+      .map((p) => ({ id: p.id, name: p.name }));
+
+    const linkedTo = target.startsWith('web:')
+      ? await getLinkedLineKey(target)
+      : await getLinkedWebKey(`line:${target}`);
+
+    let linkedName = null;
+    if (linkedTo) {
+      const linkedId = linkedTo.startsWith('line:') ? linkedTo.slice(5) : linkedTo;
+      const linkedPatient = patients.find((p) => p.id === linkedId);
+      linkedName = linkedPatient ? linkedPatient.name : '（一覧にない患者さん）';
+    }
+
+    res.json({
+      type: target.startsWith('web:') ? 'web' : 'line',
+      linked: !!linkedTo,
+      linkedName,
+      lineCandidates,
+    });
+  } catch (err) {
+    console.error('お薬手帳連携の取得エラー（コンソール）:', err);
+    res.status(500).json({ error: '連携状況を取得できませんでした。' });
+  }
+});
+
+app.post('/api/admin/patients/:id/medication-link', requireAdminSession, async (req, res) => {
+  const target = req.params.id; // ホームページの患者さん（web:<sid>）
+  const lineUserId = (req.body.lineUserId || '').trim();
+
+  if (!target.startsWith('web:')) {
+    return res.status(400).json({ error: 'ホームページの患者さんを選んでから紐づけてください。' });
+  }
+
+  try {
+    const patients = await getAllPatientsWithNames();
+    // 担当している患者さん同士でしか紐づけられないようにする
+    if (!patients.some((p) => p.id === target)) {
+      return res.status(404).json({ error: '担当されている患者さんが見つかりません。' });
+    }
+    if (!patients.some((p) => p.id === lineUserId && p.type === 'line')) {
+      return res.status(404).json({ error: '担当されているLINEの患者さんが見つかりません。' });
+    }
+
+    const result = await linkBooks(target, `line:${lineUserId}`);
+    if (!result.ok) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json({ ok: true, merged: result.merged });
+  } catch (err) {
+    console.error('お薬手帳連携エラー（コンソール）:', err);
+    res.status(500).json({ error: '紐づけできませんでした。' });
+  }
+});
+
+app.delete('/api/admin/patients/:id/medication-link', requireAdminSession, async (req, res) => {
+  const target = req.params.id;
+
+  if (!target.startsWith('web:')) {
+    return res.status(400).json({ error: 'ホームページの患者さんを選んでから解除してください。' });
+  }
+
+  try {
+    const patients = await getAllPatientsWithNames();
+    if (!patients.some((p) => p.id === target)) {
+      return res.status(404).json({ error: '担当されている患者さんが見つかりません。' });
+    }
+
+    const result = await unlinkBooks(target);
+    if (!result.ok) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('お薬手帳連携解除エラー（コンソール）:', err);
+    res.status(500).json({ error: '解除できませんでした。' });
+  }
+});
+
 // 薬剤師が、自分で登録したお薬を削除する（患者さんが登録したお薬は消せない）
 app.post('/api/admin/patients/:id/medications/delete', requireAdminSession, async (req, res) => {
   const name = (req.body.name || '').trim();
@@ -1128,6 +1262,9 @@ app.delete('/api/admin/patients/:id', requireAdminSession, async (req, res) => {
 
   try {
     if (target.startsWith('web:')) {
+      // セッションが消えると紐づけの参照先が失われるため、先に解除しておく
+      // （解除時にお薬手帳の内容はweb側にコピーされるので、内容は失われない）
+      await unlinkBooks(target).catch(() => {});
       await deleteSession(target.slice(4));
     } else {
       await revokeAuthorization(target);

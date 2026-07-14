@@ -1800,6 +1800,62 @@ a.article-card h3 {
   margin: 0;
 }
 
+/* お薬手帳：LINEとホームページの連携 */
+.med-link-box {
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  background: #F4F6F5;
+  border-radius: 12px;
+}
+
+.med-link-box .drug-search-hint {
+  margin-bottom: 10px;
+}
+
+.med-link-row,
+.line-link-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.med-link-row select {
+  flex: 1;
+  min-width: 160px;
+  margin-bottom: 0;
+}
+
+.med-link-row .btn,
+.line-link-row .btn {
+  width: auto;
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+.line-link-row input {
+  flex: 1;
+  min-width: 140px;
+  margin-bottom: 0;
+  letter-spacing: 0.2em;
+}
+
+.med-link-state {
+  font-size: 13px;
+  color: var(--brand-dark);
+  margin: 0 0 10px;
+  line-height: 1.6;
+}
+
+.line-link-done {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--brand-dark);
+  background: #E6F4F2;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
 /* お薬手帳：写真からの読み取り（薬剤師コンソール） */
 .drug-scan {
   margin-top: 14px;
