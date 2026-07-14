@@ -100,8 +100,19 @@
     </div>
     <div class="card" style="padding:0; overflow:hidden;">
       <div class="chat-log" id="chat-log"></div>
+
+      <div class="attach-preview" id="attach-preview" hidden>
+        <img id="attach-thumb" alt="添付した写真">
+        <div class="attach-info">
+          <strong>📎 写真を添付しました</strong>
+          <span id="attach-name"></span>
+          <span class="attach-hint">「送信」を押すと薬剤師とAIに送られます</span>
+        </div>
+        <button type="button" id="attach-remove" class="attach-remove" aria-label="添付を取り消す">✕</button>
+      </div>
+
       <div class="chat-input-row">
-        <label class="file-btn" for="image-input">📷</label>
+        <label class="file-btn" for="image-input" id="file-btn">📷</label>
         <input type="file" id="image-input" accept="image/*">
         <button type="button" id="mic-button" class="mic-btn" style="display:none;" aria-label="音声入力">🎤</button>
         <input type="text" id="message-input" placeholder="お薬について相談する">
@@ -109,7 +120,6 @@
       </div>
       <div class="voice-hint" id="voice-hint" style="display:none;">🎤 声で伝えたい方は、キーボードのマイクのマークをタップしてください</div>
     </div>
-    <div class="footer-note" id="image-filename"></div>
   </section>
 
 </div>

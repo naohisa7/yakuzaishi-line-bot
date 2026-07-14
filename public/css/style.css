@@ -402,6 +402,79 @@ label {
   cursor: pointer;
 }
 
+/* 写真を選んだら📷ボタン自体も見た目を変えて、添付済みだと分かるようにする */
+.chat-input-row label.file-btn.has-file {
+  background: var(--brand-dark);
+  box-shadow: 0 0 0 3px rgba(47, 158, 143, 0.25);
+}
+
+/* 添付した写真のプレビュー（入力欄のすぐ上に出す） */
+/* display:flex は hidden 属性の display:none を打ち消してしまうため、明示的に隠す */
+.attach-preview[hidden] {
+  display: none;
+}
+
+.attach-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #E6F4F2;
+  border-top: 1px solid #D3E9E5;
+}
+
+.attach-preview img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+  background: #fff;
+}
+
+.attach-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.attach-info strong {
+  font-size: 14px;
+  color: var(--brand-dark);
+}
+
+.attach-info span {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attach-hint {
+  color: var(--brand-dark) !important;
+}
+
+.attach-remove {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.attach-remove:hover {
+  background: #FCE4EA;
+  color: #B0335A;
+}
+
 .chat-input-row input[type="file"] {
   display: none;
 }

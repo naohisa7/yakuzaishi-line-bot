@@ -5,7 +5,6 @@
   const loginError = document.getElementById('login-error');
   const policyText = document.getElementById('policy-text');
   const chatLog = document.getElementById('chat-log');
-  const imageFilename = document.getElementById('image-filename');
 
   let sessionId = null;
   let pendingResolutionTimer = null;
@@ -450,10 +449,45 @@
       '<div class="card">同意いただけない場合、本サービスはご利用いただけません。</div>';
   });
 
-  document.getElementById('image-input').addEventListener('change', () => {
-    const file = document.getElementById('image-input').files[0];
-    imageFilename.textContent = file ? '添付：' + file.name : '';
+  // 写真を選んでも添付できたか分からない、という声があったため、
+  // 入力欄のすぐ上にサムネイル付きで大きく表示し、取り消しもできるようにする
+  const attachPreview = document.getElementById('attach-preview');
+  const attachThumb = document.getElementById('attach-thumb');
+  const attachName = document.getElementById('attach-name');
+  const attachRemove = document.getElementById('attach-remove');
+  const fileBtn = document.getElementById('file-btn');
+  const imageInput = document.getElementById('image-input');
+
+  let attachedThumbUrl = null;
+
+  function clearAttachment() {
+    imageInput.value = '';
+    attachPreview.hidden = true;
+    fileBtn.classList.remove('has-file');
+    if (attachedThumbUrl) {
+      URL.revokeObjectURL(attachedThumbUrl); // 画像の一時URLを解放する
+      attachedThumbUrl = null;
+    }
+    attachThumb.removeAttribute('src');
+  }
+
+  imageInput.addEventListener('change', () => {
+    const file = imageInput.files[0];
+    if (!file) {
+      clearAttachment();
+      return;
+    }
+
+    if (attachedThumbUrl) URL.revokeObjectURL(attachedThumbUrl);
+    attachedThumbUrl = URL.createObjectURL(file);
+
+    attachThumb.src = attachedThumbUrl;
+    attachName.textContent = file.name;
+    attachPreview.hidden = false;
+    fileBtn.classList.add('has-file');
   });
+
+  attachRemove.addEventListener('click', clearAttachment);
 
   const videoCallButton = document.getElementById('video-call-button');
   if (videoCallButton) {
@@ -545,7 +579,6 @@
     if (isSending) return;
 
     const input = document.getElementById('message-input');
-    const imageInput = document.getElementById('image-input');
     const text = input.value.trim();
     const file = imageInput.files[0];
     if (!text && !file) return;
@@ -568,8 +601,7 @@
     const formData = new FormData();
     if (text) formData.append('message', text);
     if (file) formData.append('image', file);
-    imageInput.value = '';
-    imageFilename.textContent = '';
+    clearAttachment();
 
     // 写真の解析など、返信に時間がかかる場合でも待っていることが分かるように表示
     const typingBubble = addTypingBubble();
