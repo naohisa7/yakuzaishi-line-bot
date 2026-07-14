@@ -170,36 +170,70 @@
     chatLog.scrollTop = chatLog.scrollHeight;
   }
 
-  // 返信を待っている間、お薬のキャラクターが走るアニメーションを見せる
+  // 返信を待っている間、お薬のキャラクターがこちらへ向かって走るアニメーションを見せる
   // （画像の解析などで待ち時間が長くなることがあるため、待たされている感を和らげる）
-  const PILL_RUNNER_SVG = `
-    <svg class="pill-runner" viewBox="0 0 72 44" aria-hidden="true">
-      <g class="runner-lines">
-        <line x1="4" y1="16" x2="16" y2="16" />
-        <line x1="0" y1="24" x2="10" y2="24" />
-        <line x1="5" y1="32" x2="14" y2="32" />
-      </g>
-      <g class="runner">
-        <g class="runner-leg runner-leg-back">
-          <line x1="0" y1="0" x2="-4" y2="11" />
+  //
+  // カプセル本体はCSSの3D変換（perspective + preserve-3d）で立体的に見せている。
+  // 正面向きなので、脚はrotateXで前後に振り、手前に出た脚が大きく見えるようにしている。
+  const PILL_RUNNER_HTML = `
+    <svg class="pill-runner" viewBox="0 0 60 54" aria-hidden="true">
+      <defs>
+        <clipPath id="pillClip">
+          <rect x="18" y="4" width="24" height="38" rx="12" />
+        </clipPath>
+        <!-- 左右を暗く、中央を明るくして円柱の丸みを出す -->
+        <linearGradient id="pillCapGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#A82F2E" />
+          <stop offset="0.22" stop-color="#DC4B49" />
+          <stop offset="0.46" stop-color="#FF8F8A" />
+          <stop offset="0.62" stop-color="#EC5250" />
+          <stop offset="1" stop-color="#A82F2E" />
+        </linearGradient>
+        <linearGradient id="pillBodyGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#BEC3C9" />
+          <stop offset="0.22" stop-color="#E8EBEE" />
+          <stop offset="0.46" stop-color="#FFFFFF" />
+          <stop offset="0.62" stop-color="#EDF0F2" />
+          <stop offset="1" stop-color="#BEC3C9" />
+        </linearGradient>
+        <linearGradient id="pillLimbGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#1B6259" />
+          <stop offset="0.5" stop-color="#35B0A0" />
+          <stop offset="1" stop-color="#1B6259" />
+        </linearGradient>
+      </defs>
+
+      <ellipse class="pill-shadow" cx="30" cy="50" rx="12" ry="2.6" />
+
+      <g class="pill-runner-body">
+        <!-- 奥に振れた脚・腕（小さく暗く見せることで奥行きを出す） -->
+        <rect class="pill-limb pill-leg pill-leg-back" x="23" y="40" width="6" height="12" rx="3" />
+        <rect class="pill-limb pill-arm pill-arm-back" x="13" y="20" width="5" height="12" rx="2.5" />
+
+        <g class="pill-capsule">
+          <g clip-path="url(#pillClip)">
+            <rect x="18" y="4" width="24" height="19" fill="url(#pillCapGrad)" />
+            <rect x="18" y="23" width="24" height="19" fill="url(#pillBodyGrad)" />
+            <rect x="18" y="22" width="24" height="1.6" fill="rgba(0,0,0,0.22)" />
+            <rect class="pill-gloss" x="22" y="8" width="3.2" height="11" rx="1.6" />
+          </g>
+          <g class="pill-face">
+            <circle cx="26" cy="14" r="1.9" />
+            <circle cx="34" cy="14" r="1.9" />
+            <path d="M26.5 18.6q3.5 3 7 0" />
+          </g>
         </g>
-        <g class="runner-body">
-          <rect x="26" y="8" width="30" height="17" rx="8.5" class="pill-half-top" />
-          <path d="M41 8h6.5a8.5 8.5 0 0 1 0 17H41z" class="pill-half-bottom" />
-          <circle cx="44" cy="14" r="1.6" class="runner-eye" />
-          <circle cx="50" cy="14" r="1.6" class="runner-eye" />
-          <path d="M44.5 19q2.5 2.2 5 0" class="runner-smile" />
-        </g>
-        <g class="runner-leg runner-leg-front">
-          <line x1="0" y1="0" x2="5" y2="11" />
-        </g>
+
+        <!-- 手前に振れた脚・腕 -->
+        <rect class="pill-limb pill-arm pill-arm-front" x="42" y="20" width="5" height="12" rx="2.5" />
+        <rect class="pill-limb pill-leg pill-leg-front" x="31" y="40" width="6" height="12" rx="3" />
       </g>
     </svg>`;
 
   function addTypingBubble() {
     const div = document.createElement('div');
     div.className = 'bubble assistant typing-bubble';
-    div.innerHTML = `${PILL_RUNNER_SVG}<span class="typing-label">お調べしています…</span>`;
+    div.innerHTML = `${PILL_RUNNER_HTML}<span class="typing-label">お調べしています…</span>`;
     chatLog.appendChild(div);
     chatLog.scrollTop = chatLog.scrollHeight;
     return div;

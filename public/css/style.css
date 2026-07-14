@@ -268,107 +268,114 @@ label {
   color: var(--muted);
 }
 
+/* こちらへ向かって走るカプセル
+   SVGで描いて陰影（左右の明暗＋ハイライト）で立体感を出し、CSSで動かす。
+   CSSの3D変換（preserve-3d）だと3Dレイヤーが粗くラスタライズされて輪郭がぼやけるため、
+   輪郭が常に鮮明なSVGにしている。奥行きは「手前の脚は大きく・奥の脚は小さく暗く」で表現する */
 .pill-runner {
-  width: 64px;
-  height: 40px;
+  width: 56px;
+  height: 50px;
   flex-shrink: 0;
   overflow: visible;
 }
 
-/* 体（カプセル）。上下に弾みながら、少し前傾して走る */
-.pill-runner .runner {
-  animation: runnerBob 0.44s ease-in-out infinite;
-  transform-origin: 41px 20px;
+/* 体全体。上下に弾む */
+.pill-runner-body {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: pillRunBob 0.46s ease-in-out infinite;
 }
 
-.pill-runner .runner-body {
-  transform: rotate(-8deg);
-  transform-origin: 41px 16px;
+/* カプセル本体。走りに合わせて左右にわずかに傾ける */
+.pill-capsule {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: pillRunSway 0.92s ease-in-out infinite;
 }
 
-.pill-runner .pill-half-top {
-  fill: #F05C5C;
-}
-
-.pill-runner .pill-half-bottom {
-  fill: #FFD34E;
-}
-
-.pill-runner .runner-eye {
+.pill-gloss {
   fill: #fff;
+  opacity: 0.55;
 }
 
-.pill-runner .runner-smile {
+.pill-face circle {
+  fill: #33302F;
+}
+
+.pill-face path {
   fill: none;
-  stroke: #fff;
+  stroke: #33302F;
   stroke-width: 1.4;
   stroke-linecap: round;
 }
 
-/* 足。前後で逆位相に振ることで走っているように見せる */
-.pill-runner .runner-leg line {
-  stroke: var(--brand-dark);
-  stroke-width: 2.8;
-  stroke-linecap: round;
+.pill-limb {
+  fill: url(#pillLimbGrad);
+  transform-box: fill-box;
+  transform-origin: center top;
 }
 
-.pill-runner .runner-leg {
-  transform-origin: 0 0;
-  animation: runnerLeg 0.44s ease-in-out infinite;
+/* 手前に出た脚は大きく、奥へ引いた脚は小さく暗くすることで、
+   正面を向いたまま「こちらへ走ってくる」ように見せる */
+.pill-leg {
+  animation: pillLegFront 0.46s ease-in-out infinite;
 }
 
-
-/* 位置は変数で持つ。キーフレーム側も同じ変数でtranslateし直すため、
-   回転アニメーションで位置が原点に飛んでしまうのを防げる */
-.pill-runner .runner-leg-front {
-  --x: 44px;
-  --y: 24px;
-  transform: translate(var(--x), var(--y));
+.pill-leg-back {
+  animation-name: pillLegBack;
 }
 
-.pill-runner .runner-leg-back {
-  --x: 36px;
-  --y: 24px;
-  transform: translate(var(--x), var(--y));
-  animation-delay: -0.22s; /* 逆位相にして交互に足が出るようにする */
+.pill-arm {
+  animation: pillArmBack 0.46s ease-in-out infinite;
 }
 
-/* 奥の足は少し明るくして、手前の足と見分けがつくようにする */
-.pill-runner .runner-leg-back line {
-  stroke: var(--brand);
+.pill-arm-front {
+  animation-name: pillArmFront;
 }
 
-/* 走っている感じを出すスピード線 */
-.pill-runner .runner-lines line {
-  stroke: var(--brand);
-  stroke-width: 2;
-  stroke-linecap: round;
-  opacity: 0.45;
-  animation: runnerLines 0.5s linear infinite;
+.pill-shadow {
+  fill: rgba(31, 111, 101, 0.22);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pillRunShadow 0.46s ease-in-out infinite;
 }
 
-.pill-runner .runner-lines line:nth-child(2) {
-  animation-delay: -0.17s;
+@keyframes pillRunBob {
+  0%, 100% { transform: translateY(0) scaleY(1); }
+  50% { transform: translateY(-4px) scaleY(1.03); }
 }
 
-.pill-runner .runner-lines line:nth-child(3) {
-  animation-delay: -0.34s;
+@keyframes pillRunSway {
+  0%, 100% { transform: rotate(-3.5deg); }
+  50% { transform: rotate(3.5deg); }
 }
 
-@keyframes runnerBob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
+/* 手前へ踏み出す脚：大きく・下へ */
+@keyframes pillLegFront {
+  0%, 100% { transform: translateY(2px) scale(1.18); opacity: 1; }
+  50% { transform: translateY(-3px) scale(0.8); opacity: 0.72; }
 }
 
-@keyframes runnerLeg {
-  0%, 100% { transform: translate(var(--x, 0), var(--y, 0)) rotate(28deg); }
-  50% { transform: translate(var(--x, 0), var(--y, 0)) rotate(-32deg); }
+/* 奥へ蹴り出す脚：小さく・上へ（逆位相） */
+@keyframes pillLegBack {
+  0%, 100% { transform: translateY(-3px) scale(0.8); opacity: 0.72; }
+  50% { transform: translateY(2px) scale(1.18); opacity: 1; }
 }
 
-@keyframes runnerLines {
-  0% { transform: translateX(6px); opacity: 0; }
-  40% { opacity: 0.45; }
-  100% { transform: translateX(-10px); opacity: 0; }
+/* 腕は脚と逆に振る */
+@keyframes pillArmFront {
+  0%, 100% { transform: translateY(-2px) scale(0.85) rotate(-8deg); opacity: 0.75; }
+  50% { transform: translateY(2px) scale(1.12) rotate(8deg); opacity: 1; }
+}
+
+@keyframes pillArmBack {
+  0%, 100% { transform: translateY(2px) scale(1.12) rotate(8deg); opacity: 1; }
+  50% { transform: translateY(-2px) scale(0.85) rotate(-8deg); opacity: 0.75; }
+}
+
+@keyframes pillRunShadow {
+  0%, 100% { transform: scale(1); opacity: 0.22; }
+  50% { transform: scale(0.76); opacity: 0.12; }
 }
 
 .call-link {
@@ -2211,15 +2218,32 @@ textarea {
   .nav-logo-icon,
   .cta-banner,
   .trust-badge,
-  .pill-runner .runner,
-  .pill-runner .runner-leg,
-  .pill-runner .runner-lines line {
+  .pill-runner-body,
+  .pill-capsule,
+  .pill-leg,
+  .pill-arm,
+  .pill-shadow {
     animation: none !important;
   }
 
-  /* 動きを止めても「待っている最中」だと分かるよう、キャラクターと文言は表示したままにする */
-  .pill-runner .runner-lines line {
-    opacity: 0.45;
+  /* 動きを止めても「待っている最中」だと分かるよう、キャラクターと文言は表示したままにする。
+     静止時は走っている途中の姿勢（片脚が手前・片脚が奥）で固定する */
+  .pill-leg-front {
+    transform: translateY(2px) scale(1.15);
+  }
+
+  .pill-leg-back {
+    transform: translateY(-2px) scale(0.85);
+    opacity: 0.75;
+  }
+
+  .pill-arm-front {
+    transform: translateY(2px) scale(1.1);
+  }
+
+  .pill-arm-back {
+    transform: translateY(-2px) scale(0.88);
+    opacity: 0.8;
   }
 
   .reveal,
