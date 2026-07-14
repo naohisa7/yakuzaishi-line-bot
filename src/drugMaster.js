@@ -31,35 +31,74 @@ function normalizeForSearch(text) {
     .toLowerCase();
 }
 
-let drugs = null;
+/**
+ * 医薬品マスタの薬品名からメーカー名（屋号）を取り除く
+ *
+ * マスタではメーカー名が「」で囲まれている（例：アムロジピン錠５ｍｇ「トーワ」、
+ * ファモチジン錠１０「サワイ」　１０ｍｇ）。患者さんにとってメーカーの区別は難しく、
+ * 候補が同じ薬で何十件にも膨らんでしまうため、患者さん向けの候補では取り除く。
+ */
+function stripManufacturer(name) {
+  return name
+    .replace(/「[^」]*」/g, '')
+    .replace(/[\s　]+/g, ' ')
+    .trim();
+}
+
+let fullIndex = null; // メーカー名込み（薬剤師用）
+let simpleIndex = null; // メーカー名なし（患者さん用）
 
 function load() {
-  if (drugs) return drugs;
+  if (fullIndex) return;
 
   const jsonPath = path.join(__dirname, '../data/drugs.json');
   try {
-    drugs = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
-    console.log(`💊 医薬品マスタを読み込みました（${drugs.length.toLocaleString()}件）`);
+    fullIndex = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
   } catch (err) {
     // マスタが無くてもサーバー全体は動くようにする（検索だけが空になる）
     console.error(`❌ 医薬品マスタを読み込めませんでした（${jsonPath}）:`, err.message);
-    drugs = [];
+    fullIndex = [];
   }
-  return drugs;
+
+  // メーカー名を除いた同名のお薬は1件にまとめる
+  const byBaseName = new Map();
+  for (const drug of fullIndex) {
+    const name = stripManufacturer(drug.n);
+    if (!name || byBaseName.has(name)) continue;
+    byBaseName.set(name, {
+      n: name,
+      // カナ名はメーカー分を含んだままだが、検索の当たりが増えるだけで害はない
+      s: `${normalizeForSearch(name)} ${drug.s}`,
+      u: drug.u,
+    });
+  }
+  simpleIndex = [...byBaseName.values()];
+
+  console.log(
+    `💊 医薬品マスタを読み込みました（薬剤師用 ${fullIndex.length.toLocaleString()}件 / ` +
+      `患者さん用 ${simpleIndex.length.toLocaleString()}件・メーカー名なし）`
+  );
 }
 
 /**
  * 薬品名を検索する
  * @param {string} query - 検索語（3文字未満なら結果なし）
- * @param {number} limit - 最大件数
+ * @param {object} [options]
+ * @param {boolean} [options.includeManufacturer=true]
+ *   true  … メーカー名込みの正式名称（薬剤師が登録するとき）
+ *   false … メーカー名を除いた名称（患者さんが登録するとき。候補がすっきりする）
+ * @param {number} [options.limit]
  * @returns {{ name: string, unit: string }[]} 前方一致を優先した候補
  */
-function searchDrugs(query, limit = DEFAULT_LIMIT) {
+function searchDrugs(query, options = {}) {
+  const { includeManufacturer = true, limit = DEFAULT_LIMIT } = options;
+
   const raw = (query || '').trim();
   if (raw.length < MIN_QUERY_LENGTH) return [];
 
+  load();
   const needle = normalizeForSearch(raw);
-  const list = load();
+  const list = includeManufacturer ? fullIndex : simpleIndex;
 
   // 「アムロジ」で「アムロジピン錠…」が先に出るよう、前方一致を優先して並べる
   const prefixMatches = [];
@@ -80,4 +119,4 @@ function searchDrugs(query, limit = DEFAULT_LIMIT) {
     .map((drug) => ({ name: drug.n, unit: drug.u }));
 }
 
-module.exports = { searchDrugs, normalizeForSearch, MIN_QUERY_LENGTH };
+module.exports = { searchDrugs, normalizeForSearch, stripManufacturer, MIN_QUERY_LENGTH };

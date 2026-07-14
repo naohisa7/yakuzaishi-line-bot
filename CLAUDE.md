@@ -32,6 +32,7 @@ LINE公式アカウント＋ホームページで、患者さんの薬相談にA
 - **お薬手帳（`drugMaster.js` + `data/drugs.json` + `public/js/drug-picker.js`）**
   - **テキストからの自動記録は廃止**。実際に服用しているか不明で規格も特定できないため、`[SAVE_DRUG]`タグは**写真から読み取った場合のみ**有効。プロンプトで禁じるだけでなく`askClaude`内で「直近のユーザー発言に画像が無ければ`savedDrugs`を空にする」コード側の防御も入れている（二重の安全策・絶対に外さないこと）
   - **薬品名の検索**：支払基金の公式医薬品マスター（19,279件、薬品名に規格を含む）を`scripts/build-drug-master.js`で`data/drugs.json`に変換して同梱。改定時はスクリプト内のURLを更新して再実行するだけ。3文字以上・ひらがな可・前方一致優先
+  - **メーカー名の扱い**：`searchDrugs(q, { includeManufacturer })`で出し分ける。**患者さんにはメーカー名（「トーワ」等）を除いた名称**（13,602件・同名は1件に集約。候補が膨らまずすっきりする）、**薬剤師には正式名称（メーカー名込み）**（19,279件・実際に調剤した銘柄を記録するため）。索引は`drugMaster.js`の`load()`で両方まとめて構築する（データファイルは1つ）
   - **お薬手帳は2冊に分かれる**（`source`で判別）。**薬剤師の手帳**（`pharmacist`：`/console`で登録）と**患者さんの手帳**（`manual`＝自分で登録／`photo`＝写真から／未設定=`legacy`＝旧テキスト自動記録で要確認）。**互いの手帳は削除できない**（`removeMedication(key, name, scope)`の`scope`が`'patient'`か`'pharmacist'`かで制御。LINE・Web・コンソールの全削除経路で必ず指定する）
   - 薬剤師の登録先は**担当患者のみ**（`resolveManagedPatientKey`が`/api/admin/patients`の一覧に無いIDを弾く）
   - 検索〜まとめて登録のUIは患者用`/medications`と薬剤師用`/console`で`drug-picker.js`を共用

@@ -400,6 +400,7 @@ app.get('/api/medications', requireWebSession, async (req, res) => {
 });
 
 // 医薬品マスタから薬品名（規格込み）の候補を検索する。3文字以上でのみ検索する
+// 患者さんにはメーカー名（「トーワ」等）の区別は難しく候補も膨らむため、除いた名称を返す
 app.get('/api/drugs/search', requireWebSession, (req, res) => {
   const query = (req.query.q || '').trim();
 
@@ -407,7 +408,10 @@ app.get('/api/drugs/search', requireWebSession, (req, res) => {
     return res.json({ drugs: [], minLength: MIN_QUERY_LENGTH });
   }
 
-  res.json({ drugs: searchDrugs(query), minLength: MIN_QUERY_LENGTH });
+  res.json({
+    drugs: searchDrugs(query, { includeManufacturer: false }),
+    minLength: MIN_QUERY_LENGTH,
+  });
 });
 
 // 患者さんが選んだお薬をまとめて登録する
@@ -986,13 +990,17 @@ app.post('/api/admin/patients/:id/medications/delete', requireAdminSession, asyn
   }
 });
 
-// 薬剤師コンソールからの薬品名検索（患者さん向けと同じマスタを使う）
+// 薬剤師コンソールからの薬品名検索
+// 薬剤師は実際に調剤した銘柄を記録する必要があるため、メーカー名込みの正式名称を返す
 app.get('/api/admin/drugs/search', requireAdminSession, (req, res) => {
   const query = (req.query.q || '').trim();
   if (query.length < MIN_QUERY_LENGTH) {
     return res.json({ drugs: [], minLength: MIN_QUERY_LENGTH });
   }
-  res.json({ drugs: searchDrugs(query), minLength: MIN_QUERY_LENGTH });
+  res.json({
+    drugs: searchDrugs(query, { includeManufacturer: true }),
+    minLength: MIN_QUERY_LENGTH,
+  });
 });
 
 app.get('/api/cron/medication-reminders', async (req, res) => {
