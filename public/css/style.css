@@ -255,33 +255,120 @@ label {
   gap: 10px;
 }
 
+/* 返信を待っている間の表示：お薬のキャラクターが走る */
 .bubble.typing-bubble {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 16px 18px;
+  gap: 8px;
+  padding: 12px 16px;
 }
 
-.typing-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--muted);
-  opacity: 0.4;
-  animation: typingBounce 1.2s ease-in-out infinite;
+.typing-label {
+  font-size: 13px;
+  color: var(--muted);
 }
 
-.typing-dot:nth-child(2) {
-  animation-delay: 0.15s;
+.pill-runner {
+  width: 64px;
+  height: 40px;
+  flex-shrink: 0;
+  overflow: visible;
 }
 
-.typing-dot:nth-child(3) {
-  animation-delay: 0.3s;
+/* 体（カプセル）。上下に弾みながら、少し前傾して走る */
+.pill-runner .runner {
+  animation: runnerBob 0.44s ease-in-out infinite;
+  transform-origin: 41px 20px;
 }
 
-@keyframes typingBounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-  30% { transform: translateY(-4px); opacity: 1; }
+.pill-runner .runner-body {
+  transform: rotate(-8deg);
+  transform-origin: 41px 16px;
+}
+
+.pill-runner .pill-half-top {
+  fill: #F05C5C;
+}
+
+.pill-runner .pill-half-bottom {
+  fill: #FFD34E;
+}
+
+.pill-runner .runner-eye {
+  fill: #fff;
+}
+
+.pill-runner .runner-smile {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+/* 足。前後で逆位相に振ることで走っているように見せる */
+.pill-runner .runner-leg line {
+  stroke: var(--brand-dark);
+  stroke-width: 2.8;
+  stroke-linecap: round;
+}
+
+.pill-runner .runner-leg {
+  transform-origin: 0 0;
+  animation: runnerLeg 0.44s ease-in-out infinite;
+}
+
+
+/* 位置は変数で持つ。キーフレーム側も同じ変数でtranslateし直すため、
+   回転アニメーションで位置が原点に飛んでしまうのを防げる */
+.pill-runner .runner-leg-front {
+  --x: 44px;
+  --y: 24px;
+  transform: translate(var(--x), var(--y));
+}
+
+.pill-runner .runner-leg-back {
+  --x: 36px;
+  --y: 24px;
+  transform: translate(var(--x), var(--y));
+  animation-delay: -0.22s; /* 逆位相にして交互に足が出るようにする */
+}
+
+/* 奥の足は少し明るくして、手前の足と見分けがつくようにする */
+.pill-runner .runner-leg-back line {
+  stroke: var(--brand);
+}
+
+/* 走っている感じを出すスピード線 */
+.pill-runner .runner-lines line {
+  stroke: var(--brand);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.45;
+  animation: runnerLines 0.5s linear infinite;
+}
+
+.pill-runner .runner-lines line:nth-child(2) {
+  animation-delay: -0.17s;
+}
+
+.pill-runner .runner-lines line:nth-child(3) {
+  animation-delay: -0.34s;
+}
+
+@keyframes runnerBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes runnerLeg {
+  0%, 100% { transform: translate(var(--x, 0), var(--y, 0)) rotate(28deg); }
+  50% { transform: translate(var(--x, 0), var(--y, 0)) rotate(-32deg); }
+}
+
+@keyframes runnerLines {
+  0% { transform: translateX(6px); opacity: 0; }
+  40% { opacity: 0.45; }
+  100% { transform: translateX(-10px); opacity: 0; }
 }
 
 .call-link {
@@ -2124,8 +2211,15 @@ textarea {
   .nav-logo-icon,
   .cta-banner,
   .trust-badge,
-  .typing-dot {
+  .pill-runner .runner,
+  .pill-runner .runner-leg,
+  .pill-runner .runner-lines line {
     animation: none !important;
+  }
+
+  /* 動きを止めても「待っている最中」だと分かるよう、キャラクターと文言は表示したままにする */
+  .pill-runner .runner-lines line {
+    opacity: 0.45;
   }
 
   .reveal,

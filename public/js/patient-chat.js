@@ -170,14 +170,36 @@
     chatLog.scrollTop = chatLog.scrollHeight;
   }
 
+  // 返信を待っている間、お薬のキャラクターが走るアニメーションを見せる
+  // （画像の解析などで待ち時間が長くなることがあるため、待たされている感を和らげる）
+  const PILL_RUNNER_SVG = `
+    <svg class="pill-runner" viewBox="0 0 72 44" aria-hidden="true">
+      <g class="runner-lines">
+        <line x1="4" y1="16" x2="16" y2="16" />
+        <line x1="0" y1="24" x2="10" y2="24" />
+        <line x1="5" y1="32" x2="14" y2="32" />
+      </g>
+      <g class="runner">
+        <g class="runner-leg runner-leg-back">
+          <line x1="0" y1="0" x2="-4" y2="11" />
+        </g>
+        <g class="runner-body">
+          <rect x="26" y="8" width="30" height="17" rx="8.5" class="pill-half-top" />
+          <path d="M41 8h6.5a8.5 8.5 0 0 1 0 17H41z" class="pill-half-bottom" />
+          <circle cx="44" cy="14" r="1.6" class="runner-eye" />
+          <circle cx="50" cy="14" r="1.6" class="runner-eye" />
+          <path d="M44.5 19q2.5 2.2 5 0" class="runner-smile" />
+        </g>
+        <g class="runner-leg runner-leg-front">
+          <line x1="0" y1="0" x2="5" y2="11" />
+        </g>
+      </g>
+    </svg>`;
+
   function addTypingBubble() {
     const div = document.createElement('div');
     div.className = 'bubble assistant typing-bubble';
-    for (let i = 0; i < 3; i++) {
-      const dot = document.createElement('span');
-      dot.className = 'typing-dot';
-      div.appendChild(dot);
-    }
+    div.innerHTML = `${PILL_RUNNER_SVG}<span class="typing-label">お調べしています…</span>`;
     chatLog.appendChild(div);
     chatLog.scrollTop = chatLog.scrollHeight;
     return div;
