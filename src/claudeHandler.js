@@ -147,4 +147,70 @@ async function askClaude(history, knownMedications = []) {
   return { message: cleanMessage, needsEscalation, savedDrugs };
 }
 
-module.exports = { askClaude };
+/**
+ * 薬剤師コンソール用：処方箋・お薬手帳・薬の写真から薬品名を読み取る
+ *
+ * 患者さん向けのチャットと違い、読み取った結果はそのまま保存せず、
+ * 必ず薬剤師が画面で確認してから登録する前提（誤読をそのまま記録しないため）。
+ * 判断するのは薬剤師なので、AIは推測を書かず「読み取れた文字」を素直に返す。
+ *
+ * @param {string} imageBase64 - JPEGのBase64データ
+ * @returns {Promise<{ names: string[], note: string }>} names=読み取れた薬品名（規格・メーカー込み）
+ */
+async function extractMedicationsFromImage(imageBase64) {
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1500,
+    system: `あなたは薬剤師の業務を補助するアシスタントです。処方箋・お薬手帳・薬のパッケージやシートの画像から、薬品名を読み取ってください。
+
+【出力形式】
+必ず以下のJSONのみを出力してください。前後に説明文やコードブロックの記号を付けないでください。
+{"names": ["薬品名1", "薬品名2"], "note": "補足"}
+
+【薬品名の書き方】
+- 画像に書かれているとおりに、規格（〇〇mg、〇〇％ など）まで含めて正確に書き写してください
+- メーカー名（「トーワ」「サワイ」など）が書かれていれば、それも含めてください（例：アムロジピン錠5mg「トーワ」）
+- 用法・用量・日数（1日3回、7日分 など）は薬品名に含めないでください
+- 読み取ったままを書いてください。実在する薬名に補正したり、書かれていない情報を推測で補ったりしないでください
+
+【namesに入れてはいけないもの】
+- 文字が読めない、一部しか見えない薬（推測で埋めないこと）
+- 一包化された裸錠など、パッケージの文字が無く刻印や形状からしか判断できないもの（薬剤師が現物で確認すべきものです）
+- 薬品名以外（患者名・医療機関名・日付・保険情報など）
+
+【note】
+読み取れなかった薬がある、画像が不鮮明、一包化されていて特定できない、といった注意点があれば日本語で簡潔に書いてください。特に無ければ空文字にしてください。
+
+薬品名がひとつも読み取れない場合は {"names": [], "note": "理由"} を返してください。`,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageBase64 } },
+          { type: 'text', text: 'この画像から薬品名を読み取ってください。' },
+        ],
+      },
+    ],
+  });
+
+  const text = response.content[0].text.trim();
+
+  // 万一コードブロックや前置きが付いても拾えるようにJSON部分を取り出す
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) {
+    return { names: [], note: '画像から薬品名を読み取れませんでした。' };
+  }
+
+  try {
+    const parsed = JSON.parse(match[0]);
+    const names = Array.isArray(parsed.names)
+      ? parsed.names.map((n) => String(n).trim()).filter(Boolean)
+      : [];
+    return { names, note: typeof parsed.note === 'string' ? parsed.note : '' };
+  } catch (err) {
+    console.error('画像からの薬品名読み取り結果を解析できませんでした:', text);
+    return { names: [], note: '画像から薬品名を読み取れませんでした。' };
+  }
+}
+
+module.exports = { askClaude, extractMedicationsFromImage };

@@ -111,6 +111,15 @@
               <ul id="console-drug-results" class="drug-search-results" hidden></ul>
             </div>
 
+            <div class="drug-scan">
+              <label class="btn btn-secondary drug-scan-button" id="console-scan-label">
+                📷 処方箋・お薬手帳の写真から読み取る
+                <input type="file" id="console-scan-input" accept="image/*" hidden>
+              </label>
+              <p class="drug-scan-note">読み取った内容は下の「登録するお薬」に入ります。<strong>そのままでは登録されません</strong>ので、必ず内容をご確認のうえ登録してください。</p>
+              <div id="console-scan-status" class="drug-scan-status"></div>
+            </div>
+
             <div id="console-drug-pending" class="drug-pending" hidden>
               <h4>登録するお薬（<span id="console-drug-pending-count">0</span>件）</h4>
               <ul id="console-drug-pending-list" class="drug-pending-list"></ul>

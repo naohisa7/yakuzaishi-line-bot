@@ -1800,6 +1800,54 @@ a.article-card h3 {
   margin: 0;
 }
 
+/* お薬手帳：写真からの読み取り（薬剤師コンソール） */
+.drug-scan {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed #E5E7EB;
+}
+
+.drug-scan-button {
+  display: inline-block;
+  cursor: pointer;
+  margin-bottom: 0;
+}
+
+.drug-scan-button.is-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.drug-scan-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 8px 0 0;
+  line-height: 1.6;
+}
+
+.drug-scan-status {
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-line; /* 読み取り結果の注意書きを改行して出す */
+  margin-top: 8px;
+}
+
+.drug-scan-status:empty {
+  margin-top: 0;
+}
+
+.drug-scan-ok {
+  color: var(--brand-dark);
+}
+
+.drug-scan-warn {
+  color: #9C6B0A;
+}
+
+.drug-scan-error {
+  color: #B0335A;
+}
+
 /* お薬手帳：薬品名の検索と登録 */
 .drug-search-hint {
   font-size: 13px;

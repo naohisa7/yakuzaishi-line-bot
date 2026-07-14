@@ -47,6 +47,7 @@ function stripManufacturer(name) {
 
 let fullIndex = null; // メーカー名込み（薬剤師用）
 let simpleIndex = null; // メーカー名なし（患者さん用）
+let byNormalizedName = null; // 正規化した薬品名 → 正式名称（画像から読み取った名前の突合に使う）
 
 function load() {
   if (fullIndex) return;
@@ -62,7 +63,11 @@ function load() {
 
   // メーカー名を除いた同名のお薬は1件にまとめる
   const byBaseName = new Map();
+  byNormalizedName = new Map();
+
   for (const drug of fullIndex) {
+    byNormalizedName.set(normalizeForSearch(drug.n), drug.n);
+
     const name = stripManufacturer(drug.n);
     if (!name || byBaseName.has(name)) continue;
     byBaseName.set(name, {
@@ -73,6 +78,12 @@ function load() {
     });
   }
   simpleIndex = [...byBaseName.values()];
+
+  // メーカー名なしの名称（患者さん向けの表記）も突合できるようにする
+  for (const drug of simpleIndex) {
+    const key = normalizeForSearch(drug.n);
+    if (!byNormalizedName.has(key)) byNormalizedName.set(key, drug.n);
+  }
 
   console.log(
     `💊 医薬品マスタを読み込みました（薬剤師用 ${fullIndex.length.toLocaleString()}件 / ` +
@@ -119,4 +130,39 @@ function searchDrugs(query, options = {}) {
     .map((drug) => ({ name: drug.n, unit: drug.u }));
 }
 
-module.exports = { searchDrugs, normalizeForSearch, stripManufacturer, MIN_QUERY_LENGTH };
+/**
+ * 画像から読み取った薬品名を、医薬品マスタの正式名称に突き合わせる
+ *
+ * AIは画像に書かれたとおり（例：アムロジピン錠5mg「トーワ」）に読み取るが、マスタは
+ * 全角表記（アムロジピン錠５ｍｇ「トーワ」）なので、正規化して照合し正式名称に直す。
+ * マスタに無い場合は読み取った名前をそのまま返し、matched=false で呼び出し側に知らせる
+ * （OTCや外用剤など、マスタに載らないものもあるため、登録自体は薬剤師の判断に委ねる）。
+ *
+ * @param {string} name - 画像から読み取った薬品名
+ * @returns {{ name: string, matched: boolean }}
+ */
+function matchDrugName(name) {
+  const raw = (name || '').trim();
+  if (!raw) return { name: '', matched: false };
+
+  load();
+
+  const exact = byNormalizedName.get(normalizeForSearch(raw));
+  if (exact) return { name: exact, matched: true };
+
+  // 表記ゆれ（余分な空白・メーカー名の有無など）を吸収するため、前方一致でも探す
+  const [candidate] = searchDrugs(raw, { includeManufacturer: true, limit: 1 });
+  if (candidate && normalizeForSearch(candidate.name).startsWith(normalizeForSearch(raw))) {
+    return { name: candidate.name, matched: true };
+  }
+
+  return { name: raw, matched: false };
+}
+
+module.exports = {
+  searchDrugs,
+  matchDrugName,
+  normalizeForSearch,
+  stripManufacturer,
+  MIN_QUERY_LENGTH,
+};

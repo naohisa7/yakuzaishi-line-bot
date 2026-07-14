@@ -169,6 +169,24 @@ window.DrugPicker = (function () {
         clearResults();
         renderPending();
       },
+
+      // 検索以外の経路（写真からの読み取りなど）で候補を積む
+      // 積むだけで登録はしないので、利用者が内容を確認してから登録ボタンを押せる
+      addNames(names) {
+        let added = 0;
+        names.forEach((name) => {
+          const trimmed = (name || '').trim();
+          if (!trimmed || pending.includes(trimmed)) return;
+          pending.push(trimmed);
+          added++;
+        });
+        renderPending();
+        return added;
+      },
+
+      get count() {
+        return pending.length;
+      },
     };
   }
 

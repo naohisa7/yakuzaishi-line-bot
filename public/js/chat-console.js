@@ -214,6 +214,7 @@
 
     resetInterventionForm();
     drugPicker.reset(); // 前の患者さん向けに選びかけていたお薬を持ち越さない
+    setScanStatus('');
     await refreshThread();
     await refreshInterventions();
     await refreshReminder();
@@ -303,6 +304,73 @@
       if (!res.ok) throw new Error('登録に失敗しました');
       await refreshMedications();
     },
+  });
+
+  // 処方箋・お薬手帳の写真から薬品名を読み取る
+  // 読み取り結果は登録せず「登録するお薬」に積むだけ。薬剤師が確認してから登録する
+  const scanInput = document.getElementById('console-scan-input');
+  const scanLabel = document.getElementById('console-scan-label');
+  const scanStatus = document.getElementById('console-scan-status');
+
+  function setScanStatus(text, kind) {
+    scanStatus.textContent = text;
+    scanStatus.className = 'drug-scan-status' + (kind ? ' drug-scan-' + kind : '');
+  }
+
+  scanInput.addEventListener('change', async () => {
+    const file = scanInput.files[0];
+    if (!file) return;
+
+    if (!selectedId) {
+      setScanStatus('患者さんを選んでから読み取ってください。', 'error');
+      scanInput.value = '';
+      return;
+    }
+
+    scanLabel.classList.add('is-loading');
+    setScanStatus('画像を読み取っています…（10秒ほどかかります）');
+
+    try {
+      const body = new FormData();
+      body.append('image', file);
+
+      const res = await fetch(
+        '/api/admin/patients/' + encodeURIComponent(selectedId) + '/medications/scan',
+        { method: 'POST', body }
+      );
+      const data = await res.json();
+
+      if (!res.ok) {
+        setScanStatus(data.error || '画像を読み取れませんでした。', 'error');
+        return;
+      }
+
+      const drugs = data.drugs || [];
+      if (drugs.length === 0) {
+        setScanStatus(
+          data.note || '薬品名を読み取れませんでした。明るい場所で、文字にピントを合わせて撮り直してください。',
+          'error'
+        );
+        return;
+      }
+
+      const added = drugPicker.addNames(drugs.map((d) => d.name));
+      const unmatched = drugs.filter((d) => !d.matched).map((d) => d.name);
+
+      const messages = [`${added}件を「登録するお薬」に追加しました。内容をご確認のうえ登録してください。`];
+      if (unmatched.length > 0) {
+        // マスタに無い名前は誤読の可能性があるため、薬剤師に気づいてもらう
+        messages.push(`⚠️ 医薬品マスタに該当がありません（誤読の可能性）：${unmatched.join('、')}`);
+      }
+      if (data.note) messages.push(`📝 ${data.note}`);
+
+      setScanStatus(messages.join('\n'), unmatched.length > 0 ? 'warn' : 'ok');
+    } catch (err) {
+      setScanStatus('画像を読み取れませんでした。通信環境をご確認ください。', 'error');
+    } finally {
+      scanLabel.classList.remove('is-loading');
+      scanInput.value = ''; // 同じ画像を選び直せるようにする
+    }
   });
 
   function buildMedicationRow(med, { deletable }) {

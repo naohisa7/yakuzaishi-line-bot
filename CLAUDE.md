@@ -35,6 +35,7 @@ LINE公式アカウント＋ホームページで、患者さんの薬相談にA
   - **メーカー名の扱い**：`searchDrugs(q, { includeManufacturer })`で出し分ける。**患者さんにはメーカー名（「トーワ」等）を除いた名称**（13,602件・同名は1件に集約。候補が膨らまずすっきりする）、**薬剤師には正式名称（メーカー名込み）**（19,279件・実際に調剤した銘柄を記録するため）。索引は`drugMaster.js`の`load()`で両方まとめて構築する（データファイルは1つ）
   - **お薬手帳は2冊に分かれる**（`source`で判別）。**薬剤師の手帳**（`pharmacist`：`/console`で登録）と**患者さんの手帳**（`manual`＝自分で登録／`photo`＝写真から／未設定=`legacy`＝旧テキスト自動記録で要確認）。**互いの手帳は削除できない**（`removeMedication(key, name, scope)`の`scope`が`'patient'`か`'pharmacist'`かで制御。LINE・Web・コンソールの全削除経路で必ず指定する）
   - 薬剤師の登録先は**担当患者のみ**（`resolveManagedPatientKey`が`/api/admin/patients`の一覧に無いIDを弾く）
+  - **写真からの登録（薬剤師のみ）**：`POST /api/admin/patients/:id/medications/scan`に処方箋等の画像を送ると、`extractMedicationsFromImage`（claudeHandler）が薬品名を読み取り、`matchDrugName`（drugMaster）でマスタの正式名称に正規化して返す。**この時点では保存しない**——結果は「登録するお薬」リストに積まれるだけで、薬剤師が確認して登録ボタンを押して初めて保存される（AIの誤読をそのまま記録しないため）。マスタに該当が無い名前は`matched:false`で返し、画面で「誤読の可能性」と警告する
   - 検索〜まとめて登録のUIは患者用`/medications`と薬剤師用`/console`で`drug-picker.js`を共用
 - **SEO**：meta description・OGP・Pharmacy構造化データ（index.htmlのみ）・`robots.txt`・`sitemap.xml`・スタッフページへの`noindex`
 - **アップロード検証**：`/api/chat`の画像アップロードにmulter `fileFilter`（画像MIMEタイプのみ許可）＋`sharp`再エンコードで無害化

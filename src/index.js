@@ -13,7 +13,7 @@ const { WebSocketServer } = require('ws');
 const nodemailer = require('nodemailer');
 const line = require('@line/bot-sdk');
 const { handleEvent } = require('./lineHandler');
-const { askClaude } = require('./claudeHandler');
+const { askClaude, extractMedicationsFromImage } = require('./claudeHandler');
 const { getPasscode } = require('./passcodeManager');
 const { createSession, getSession, markConsented, touchSession, listSessionIds, removeSessionId, deleteSession } = require('./webSessionManager');
 const { addMessage, getHistory } = require('./webConversationManager');
@@ -33,7 +33,7 @@ const {
   SOURCE_PHOTO,
   SOURCE_PHARMACIST,
 } = require('./medicationRecordManager');
-const { searchDrugs, MIN_QUERY_LENGTH } = require('./drugMaster');
+const { searchDrugs, matchDrugName, MIN_QUERY_LENGTH } = require('./drugMaster');
 const { getInterventions, addIntervention, updateIntervention, removeIntervention } = require('./interventionRecordManager');
 const { getReminders, addReminder, removeReminder, listReminderPatientKeys, markSent } = require('./reminderManager');
 const { generateVideoCallLink } = require('./videoCallLink');
@@ -965,6 +965,42 @@ app.post('/api/admin/patients/:id/medications', requireAdminSession, async (req,
     res.status(500).json({ error: 'お薬を登録できませんでした。' });
   }
 });
+
+/**
+ * 薬剤師が、処方箋・お薬手帳・薬の写真から薬品名を読み取る
+ *
+ * ここでは登録しない。読み取った候補を返すだけで、薬剤師が画面で内容を確認してから
+ * 改めて登録APIを叩く（AIの誤読をそのままお薬手帳に記録しないため）。
+ */
+app.post(
+  '/api/admin/patients/:id/medications/scan',
+  requireAdminSession,
+  uploadImage,
+  async (req, res) => {
+    if (!req.file) {
+      return res.status(400).json({ error: '画像を選択してください。' });
+    }
+
+    try {
+      const patientKey = await resolveManagedPatientKey(req.params.id);
+      if (!patientKey) {
+        return res.status(404).json({ error: '担当されている患者さんが見つかりません。' });
+      }
+
+      const imageBase64 = await enhanceImageToBase64(req.file.buffer);
+      const { names, note } = await extractMedicationsFromImage(imageBase64);
+
+      // 読み取った名前を医薬品マスタの正式名称に直す。マスタに無いものはそのまま返し、
+      // 「マスタ未登録」であることを画面で薬剤師に示す
+      const drugs = names.map((name) => matchDrugName(name));
+
+      res.json({ drugs, note });
+    } catch (err) {
+      console.error('画像からの薬品名読み取りエラー（コンソール）:', err);
+      res.status(500).json({ error: '画像を読み取れませんでした。' });
+    }
+  }
+);
 
 // 薬剤師が、自分で登録したお薬を削除する（患者さんが登録したお薬は消せない）
 app.post('/api/admin/patients/:id/medications/delete', requireAdminSession, async (req, res) => {
