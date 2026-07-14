@@ -24,6 +24,8 @@
   const reminderMessage = document.getElementById('reminder-message');
   const reminderAddButton = document.getElementById('reminder-add-button');
   const reminderList = document.getElementById('reminder-list');
+  const medPharmacistList = document.getElementById('console-med-pharmacist-list');
+  const medPatientList = document.getElementById('console-med-patient-list');
 
   const INTERVENTION_LABELS = {
     follow_up: '📞 フォローアップ（電話等）',
@@ -211,9 +213,11 @@
     renderPatientList(patients.patients || []);
 
     resetInterventionForm();
+    drugPicker.reset(); // 前の患者さん向けに選びかけていたお薬を持ち越さない
     await refreshThread();
     await refreshInterventions();
     await refreshReminder();
+    await refreshMedications();
     startPolling();
   }
 
@@ -269,6 +273,113 @@
     const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/reminder');
     const data = await res.json();
     renderReminderList(data.reminders || []);
+  }
+
+  // ────────────────────────────────
+  // お薬手帳（薬剤師の手帳／患者さんの手帳を分けて表示）
+  // ────────────────────────────────
+  const MED_SOURCE_LABELS = {
+    manual: '✍️ ご自身で登録',
+    photo: '📷 写真で確認済み',
+    legacy: '⚠️ 要確認（規格不明）',
+  };
+
+  const drugPicker = DrugPicker.create({
+    input: document.getElementById('console-drug-search'),
+    status: document.getElementById('console-drug-status'),
+    results: document.getElementById('console-drug-results'),
+    pendingBox: document.getElementById('console-drug-pending'),
+    pendingList: document.getElementById('console-drug-pending-list'),
+    pendingCount: document.getElementById('console-drug-pending-count'),
+    registerButton: document.getElementById('console-drug-register'),
+    searchUrl: '/api/admin/drugs/search',
+    onRegister: async (names) => {
+      if (!selectedId) throw new Error('患者さんが選択されていません');
+      const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/medications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ names }),
+      });
+      if (!res.ok) throw new Error('登録に失敗しました');
+      await refreshMedications();
+    },
+  });
+
+  function buildMedicationRow(med, { deletable }) {
+    const row = document.createElement('div');
+    row.className = 'console-med-row';
+
+    const info = document.createElement('div');
+    info.className = 'console-med-info';
+
+    const name = document.createElement('span');
+    name.className = 'console-med-name';
+    name.textContent = med.name;
+    info.appendChild(name);
+
+    const meta = document.createElement('span');
+    meta.className = 'console-med-meta';
+    const date = new Date(med.recordedAt).toLocaleDateString('ja-JP');
+    // 薬剤師の手帳は見出しで分かるので、出所ラベルは患者さんの手帳側にだけ出す
+    meta.textContent = deletable
+      ? date + '登録'
+      : `${date}登録・${MED_SOURCE_LABELS[med.source] || MED_SOURCE_LABELS.legacy}`;
+    info.appendChild(meta);
+
+    row.appendChild(info);
+
+    if (deletable) {
+      const deleteBtn = document.createElement('button');
+      deleteBtn.type = 'button';
+      deleteBtn.className = 'resolution-btn resolution-no';
+      deleteBtn.textContent = '削除';
+      deleteBtn.addEventListener('click', async () => {
+        if (!confirm(`「${med.name}」を削除しますか？`)) return;
+        deleteBtn.disabled = true;
+        await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/medications/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: med.name }),
+        });
+        await refreshMedications();
+      });
+      row.appendChild(deleteBtn);
+    }
+
+    return row;
+  }
+
+  function renderMedicationBook(target, medications, { deletable, emptyText }) {
+    target.innerHTML = '';
+
+    if (medications.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'console-med-empty';
+      p.textContent = emptyText;
+      target.appendChild(p);
+      return;
+    }
+
+    medications.forEach((med) => target.appendChild(buildMedicationRow(med, { deletable })));
+  }
+
+  async function refreshMedications() {
+    if (!selectedId) return;
+    const res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/medications');
+    const data = await res.json();
+    const medications = data.medications || [];
+
+    renderMedicationBook(
+      medPharmacistList,
+      medications.filter((m) => m.source === 'pharmacist'),
+      { deletable: true, emptyText: 'まだ登録がありません。上の検索から登録できます。' }
+    );
+
+    renderMedicationBook(
+      medPatientList,
+      medications.filter((m) => m.source !== 'pharmacist'),
+      { deletable: false, emptyText: '患者さんご自身の登録はまだありません。' }
+    );
   }
 
   reminderAddButton.addEventListener('click', async () => {

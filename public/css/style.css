@@ -1737,6 +1737,69 @@ a.article-card h3 {
   line-height: 1.5;
 }
 
+/* お薬手帳：薬剤師の手帳／患者さんの手帳を分けて見せる */
+.med-book + .med-book {
+  margin-top: 32px;
+}
+
+.med-book-title {
+  font-size: 18px;
+  margin: 0 0 6px;
+}
+
+.med-book-note {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 14px;
+  line-height: 1.6;
+}
+
+/* 薬剤師コンソール内のお薬手帳 */
+#medication-panel .med-book {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #EEE;
+}
+
+#medication-panel .med-book h5 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.console-med-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.console-med-row + .console-med-row {
+  border-top: 1px solid #F1F3F5;
+}
+
+.console-med-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.console-med-name {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.console-med-meta,
+.console-med-empty {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.console-med-empty {
+  margin: 0;
+}
+
 /* お薬手帳：薬品名の検索と登録 */
 .drug-search-hint {
   font-size: 13px;

@@ -22,7 +22,13 @@ const {
 const { getSession: getWebSession, listSessionIds, removeSessionId } = require('./webSessionManager');
 const { addMessage: addWebMessage } = require('./webConversationManager');
 const { sendToSession } = require('./wsManager');
-const { getMedications, addMedication, removeMedication, SOURCE_PHOTO } = require('./medicationRecordManager');
+const {
+  getMedications,
+  addMedication,
+  removeMedication,
+  isPharmacistSource,
+  SOURCE_PHOTO,
+} = require('./medicationRecordManager');
 const { generateVideoCallLink } = require('./videoCallLink');
 const { formatPatientMessages } = require('./escalationSummary');
 const { setAdminPasscode } = require('./adminPasscodeManager');
@@ -277,20 +283,38 @@ async function broadcastToPatients(lineClient, text) {
 
 /**
  * 保存済みのお薬手帳を整形して表示用メッセージにする
+ * 薬剤師が作成した手帳と、患者さんご自身の手帳は分けて表示する
  */
 function formatMedicationList(entries) {
   if (entries.length === 0) {
-    return 'まだお薬手帳に記録がありません。写真やお薬の名前を送っていただくと、確認できたものから自動的に記録されます。';
+    return 'まだお薬手帳に登録がありません。ホームページの「お薬手帳」から、お飲みになっているお薬を検索して登録できます。お薬の写真を送っていただいた場合も、確認できたものは記録されます。';
   }
 
-  const listText = entries
-    .map((entry, i) => {
-      const date = new Date(entry.recordedAt).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' });
-      return `${i + 1}. ${entry.name}（${date}確認）`;
-    })
-    .join('\n');
+  const toLines = (list) =>
+    list
+      .map((entry, i) => {
+        const date = new Date(entry.recordedAt).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' });
+        return `${i + 1}. ${entry.name}（${date}登録）`;
+      })
+      .join('\n');
 
-  return `📋 お薬手帳（確認済みのお薬）\n━━━━━━━━━━━━━━\n${listText}\n\n削除する場合は「お薬手帳から削除:薬品名」と送信してください。`;
+  const byPharmacist = entries.filter((e) => isPharmacistSource(e.source));
+  const byPatient = entries.filter((e) => !isPharmacistSource(e.source));
+
+  const sections = [];
+  if (byPharmacist.length > 0) {
+    sections.push(`💊 担当薬剤師が登録したお薬\n━━━━━━━━━━━━━━\n${toLines(byPharmacist)}`);
+  }
+  if (byPatient.length > 0) {
+    sections.push(`✍️ ご自身で登録したお薬\n━━━━━━━━━━━━━━\n${toLines(byPatient)}`);
+  }
+
+  const note =
+    byPatient.length > 0
+      ? '\n\nご自身で登録したお薬を削除する場合は「お薬手帳から削除:薬品名」と送信してください。（薬剤師が登録したお薬は削除できません）'
+      : '\n\n担当薬剤師が登録したお薬は、患者さんご自身では削除できません。';
+
+  return `📋 お薬手帳\n\n${sections.join('\n\n')}${note}`;
 }
 
 /**
@@ -313,8 +337,16 @@ async function handleSpecialCommands(text, userId) {
   const medicationDeleteMatch = trimmed.match(/^お薬手帳から削除[:：]\s*(.+)$/);
   if (medicationDeleteMatch) {
     const name = medicationDeleteMatch[1].trim();
-    await removeMedication(`line:${userId}`, name);
-    return [{ type: 'text', text: `「${name}」をお薬手帳から削除しました。` }];
+    // 患者さんは、薬剤師が登録したお薬は削除できない
+    const removed = await removeMedication(`line:${userId}`, name, 'patient');
+    return [
+      {
+        type: 'text',
+        text: removed
+          ? `「${name}」をお薬手帳から削除しました。`
+          : `「${name}」は削除できませんでした。担当薬剤師が登録したお薬、またはお薬手帳に無いお薬です。`,
+      },
+    ];
   }
 
   if (trimmed === 'ヘルプ' || trimmed === 'help') {

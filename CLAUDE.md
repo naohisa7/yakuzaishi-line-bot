@@ -29,7 +29,12 @@ LINE公式アカウント＋ホームページで、患者さんの薬相談にA
 
 ## 実装済み機能（新しい順）
 
-- **お薬手帳の登録（`drugMaster.js` + `data/drugs.json`）**：**テキストからの自動記録は廃止**。実際に服用しているか不明で規格も特定できないため、`[SAVE_DRUG]`タグは**写真から読み取った場合のみ**有効。プロンプトで禁じるだけでなく`askClaude`内で「直近のユーザー発言に画像が無ければ`savedDrugs`を空にする」コード側の防御も入れている（二重の安全策・絶対に外さないこと）。代わりに患者さんが`/medications`で薬品名を**3文字以上**検索→候補選択→繰り返し→まとめて登録できる。マスタは支払基金の公式医薬品マスター（19,279件、薬品名に規格を含む）を`scripts/build-drug-master.js`で`data/drugs.json`に変換して同梱。改定時はスクリプト内のURLを更新して再実行するだけ。レコードは`source`（`manual`/`photo`/未設定=`legacy`＝旧テキスト自動記録で要確認）を持ち、UIでバッジ表示する
+- **お薬手帳（`drugMaster.js` + `data/drugs.json` + `public/js/drug-picker.js`）**
+  - **テキストからの自動記録は廃止**。実際に服用しているか不明で規格も特定できないため、`[SAVE_DRUG]`タグは**写真から読み取った場合のみ**有効。プロンプトで禁じるだけでなく`askClaude`内で「直近のユーザー発言に画像が無ければ`savedDrugs`を空にする」コード側の防御も入れている（二重の安全策・絶対に外さないこと）
+  - **薬品名の検索**：支払基金の公式医薬品マスター（19,279件、薬品名に規格を含む）を`scripts/build-drug-master.js`で`data/drugs.json`に変換して同梱。改定時はスクリプト内のURLを更新して再実行するだけ。3文字以上・ひらがな可・前方一致優先
+  - **お薬手帳は2冊に分かれる**（`source`で判別）。**薬剤師の手帳**（`pharmacist`：`/console`で登録）と**患者さんの手帳**（`manual`＝自分で登録／`photo`＝写真から／未設定=`legacy`＝旧テキスト自動記録で要確認）。**互いの手帳は削除できない**（`removeMedication(key, name, scope)`の`scope`が`'patient'`か`'pharmacist'`かで制御。LINE・Web・コンソールの全削除経路で必ず指定する）
+  - 薬剤師の登録先は**担当患者のみ**（`resolveManagedPatientKey`が`/api/admin/patients`の一覧に無いIDを弾く）
+  - 検索〜まとめて登録のUIは患者用`/medications`と薬剤師用`/console`で`drug-picker.js`を共用
 - **SEO**：meta description・OGP・Pharmacy構造化データ（index.htmlのみ）・`robots.txt`・`sitemap.xml`・スタッフページへの`noindex`
 - **アップロード検証**：`/api/chat`の画像アップロードにmulter `fileFilter`（画像MIMEタイプのみ許可）＋`sharp`再エンコードで無害化
 - **`/host`**：薬剤師用の入口ページ（3つのツールへのリンクカード）

@@ -25,7 +25,14 @@ const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { registerSocket, unregisterSocket, popPendingMessages, sendToSession } = require('./wsManager');
 const { getProfile, getPharmacistName, getArticles, getArticle, addArticle, updateArticle, deleteArticle } = require('./contentManager');
 const { recordFeedback } = require('./feedbackLogManager');
-const { getMedications, addMedication, addMedications, removeMedication, SOURCE_PHOTO } = require('./medicationRecordManager');
+const {
+  getMedications,
+  addMedication,
+  addMedications,
+  removeMedication,
+  SOURCE_PHOTO,
+  SOURCE_PHARMACIST,
+} = require('./medicationRecordManager');
 const { searchDrugs, MIN_QUERY_LENGTH } = require('./drugMaster');
 const { getInterventions, addIntervention, updateIntervention, removeIntervention } = require('./interventionRecordManager');
 const { getReminders, addReminder, removeReminder, listReminderPatientKeys, markSent } = require('./reminderManager');
@@ -426,7 +433,11 @@ app.post('/api/medications/delete', requireWebSession, async (req, res) => {
   }
 
   try {
-    await removeMedication(`web:${req.webSessionId}`, name);
+    // 患者さんは、薬剤師が登録したお薬は削除できない（scope: 'patient'）
+    const removed = await removeMedication(`web:${req.webSessionId}`, name, 'patient');
+    if (!removed) {
+      return res.status(403).json({ error: '薬剤師が登録したお薬は削除できません。' });
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error('お薬手帳削除エラー:', err);
@@ -902,6 +913,86 @@ app.delete('/api/admin/patients/:id/reminder/:reminderId', requireAdminSession, 
     console.error('リマインダー解除エラー:', err);
     res.status(500).json({ error: 'リマインダーを解除できませんでした。' });
   }
+});
+
+/**
+ * かかりつけとして担当している患者さんかどうかを確認し、patientKeyに変換する
+ *
+ * 担当患者＝認証済みのLINE患者、または同意済みのWebセッション患者（＝/consoleの患者一覧）。
+ * 一覧に無いIDが渡された場合は、そこへお薬を書き込めないようにする。
+ */
+async function resolveManagedPatientKey(target) {
+  const patients = await getAllPatientsWithNames();
+  const patient = patients.find((p) => p.id === target);
+  return patient ? patient.patientKey : null;
+}
+
+// 薬剤師が、担当患者さんのお薬手帳を見る
+app.get('/api/admin/patients/:id/medications', requireAdminSession, async (req, res) => {
+  try {
+    const patientKey = await resolveManagedPatientKey(req.params.id);
+    if (!patientKey) {
+      return res.status(404).json({ error: '担当されている患者さんが見つかりません。' });
+    }
+    res.json({ medications: await getMedications(patientKey) });
+  } catch (err) {
+    console.error('お薬手帳取得エラー（コンソール）:', err);
+    res.status(500).json({ error: 'お薬手帳を取得できませんでした。' });
+  }
+});
+
+// 薬剤師が、担当患者さんのお薬手帳にまとめて登録する
+app.post('/api/admin/patients/:id/medications', requireAdminSession, async (req, res) => {
+  const names = Array.isArray(req.body.names) ? req.body.names : [];
+  if (names.length === 0) {
+    return res.status(400).json({ error: '登録するお薬を選んでください。' });
+  }
+
+  try {
+    const patientKey = await resolveManagedPatientKey(req.params.id);
+    if (!patientKey) {
+      return res.status(404).json({ error: '担当されている患者さんが見つかりません。' });
+    }
+
+    const added = await addMedications(patientKey, names, SOURCE_PHARMACIST);
+    res.json({ ok: true, added });
+  } catch (err) {
+    console.error('お薬手帳登録エラー（コンソール）:', err);
+    res.status(500).json({ error: 'お薬を登録できませんでした。' });
+  }
+});
+
+// 薬剤師が、自分で登録したお薬を削除する（患者さんが登録したお薬は消せない）
+app.post('/api/admin/patients/:id/medications/delete', requireAdminSession, async (req, res) => {
+  const name = (req.body.name || '').trim();
+  if (!name) {
+    return res.status(400).json({ error: '薬品名を指定してください。' });
+  }
+
+  try {
+    const patientKey = await resolveManagedPatientKey(req.params.id);
+    if (!patientKey) {
+      return res.status(404).json({ error: '担当されている患者さんが見つかりません。' });
+    }
+
+    const removed = await removeMedication(patientKey, name, 'pharmacist');
+    if (!removed) {
+      return res.status(403).json({ error: '患者さんご自身が登録したお薬は、薬剤師からは削除できません。' });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('お薬手帳削除エラー（コンソール）:', err);
+    res.status(500).json({ error: 'お薬を削除できませんでした。' });
+  }
+});
+
+// 薬剤師コンソールからの薬品名検索（患者さん向けと同じマスタを使う）
+app.get('/api/admin/drugs/search', requireAdminSession, (req, res) => {
+  const query = (req.query.q || '').trim();
+  if (query.length < MIN_QUERY_LENGTH) {
+    return res.json({ drugs: [], minLength: MIN_QUERY_LENGTH });
+  }
+  res.json({ drugs: searchDrugs(query), minLength: MIN_QUERY_LENGTH });
 });
 
 app.get('/api/cron/medication-reminders', async (req, res) => {
