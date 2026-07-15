@@ -171,4 +171,89 @@
   window.printNameFlyer = function (data) {
     printNode(window.buildNameFlyer(data));
   };
+
+  // 名刺のモーダル：レイアウト（名刺サイズ／A4に10枚／A4チラシ）を切り替えると
+  // 画面のプレビューも切り替わる。スマホで印刷できない場合は、この画面を
+  // スクリーンショットして配れる。/pharmacists と /mycard の両方で使う。
+  window.openCardModal = function (cardData) {
+    const old = document.getElementById('card-modal');
+    if (old) old.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'card-modal';
+    overlay.className = 'card-modal';
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+
+    const inner = document.createElement('div');
+    inner.className = 'card-modal-inner';
+
+    const title = document.createElement('h3');
+    title.className = 'card-modal-title';
+    title.textContent = '患者さんに渡す名刺';
+    inner.appendChild(title);
+
+    const seg = document.createElement('div');
+    seg.className = 'card-seg';
+
+    const preview = document.createElement('div');
+    preview.className = 'card-modal-preview';
+
+    const buildSheet = () => {
+      const s = document.createElement('div');
+      s.className = 'namecard-sheet';
+      for (let i = 0; i < 10; i++) s.appendChild(window.buildNameCard(cardData));
+      return s;
+    };
+    const layouts = [
+      { key: 'card', label: '名刺サイズ', width: 340, build: () => window.buildNameCard(cardData), print: () => window.printNameCard(cardData, 1) },
+      { key: 'sheet', label: 'A4に10枚', width: 686, build: buildSheet, print: () => window.printNameCard(cardData, 10) },
+      { key: 'flyer', label: 'A4チラシ', width: 718, build: () => window.buildNameFlyer(cardData), print: () => window.printNameFlyer(cardData) },
+    ];
+    let current = layouts[0];
+
+    function showLayout(l) {
+      current = l;
+      Array.from(seg.children).forEach((b, i) => b.classList.toggle('active', layouts[i].key === l.key));
+      preview.innerHTML = '';
+      const node = l.build();
+      preview.appendChild(node);
+      const avail = preview.clientWidth || 300;
+      node.style.zoom = Math.min(1, avail / l.width);
+    }
+
+    layouts.forEach((l) => {
+      const b = document.createElement('button');
+      b.className = 'card-seg-btn';
+      b.textContent = l.label;
+      b.addEventListener('click', () => showLayout(l));
+      seg.appendChild(b);
+    });
+    inner.appendChild(seg);
+    inner.appendChild(preview);
+
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = 'スマホで印刷できないときは、この画面をスクリーンショットして、写真アプリやコンビニ印刷でお使いいただけます。';
+    inner.appendChild(hint);
+
+    const btns = document.createElement('div');
+    btns.className = 'card-modal-buttons';
+    const printBtn = document.createElement('button');
+    printBtn.className = 'btn';
+    printBtn.textContent = '🖨 このレイアウトを印刷';
+    printBtn.addEventListener('click', () => current.print());
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'btn btn-secondary';
+    closeBtn.textContent = '閉じる';
+    closeBtn.addEventListener('click', () => overlay.remove());
+    btns.appendChild(printBtn);
+    btns.appendChild(closeBtn);
+    inner.appendChild(btns);
+
+    overlay.appendChild(inner);
+    document.body.appendChild(overlay);
+    showLayout(layouts[0]);
+  };
 })();

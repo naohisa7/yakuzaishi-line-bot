@@ -12,10 +12,7 @@
   const phoneInput = document.getElementById('phone-input');
   const phoneSaveButton = document.getElementById('phone-save-button');
   const phoneStatus = document.getElementById('phone-status');
-  const printSingleButton = document.getElementById('print-single-button');
-  const printSheetButton = document.getElementById('print-sheet-button');
-  const printFlyerButton = document.getElementById('print-flyer-button');
-  const printCount = document.getElementById('print-count');
+  const openCardModalButton = document.getElementById('open-card-modal-button');
 
   let currentCard = null;
 
@@ -134,11 +131,7 @@
     fn();
   }
 
-  printSingleButton.addEventListener('click', () => ensureCodeThen(() => window.printNameCard(currentCard, 1)));
-  printSheetButton.addEventListener('click', () =>
-    ensureCodeThen(() => window.printNameCard(currentCard, parseInt(printCount.value, 10) || 10))
-  );
-  printFlyerButton.addEventListener('click', () => ensureCodeThen(() => window.printNameFlyer(currentCard)));
+  openCardModalButton.addEventListener('click', () => ensureCodeThen(() => window.openCardModal(currentCard)));
 
   init();
 })();

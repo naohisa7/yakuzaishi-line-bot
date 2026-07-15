@@ -85,15 +85,8 @@
       <h3>患者さんにお渡しする名刺</h3>
       <p class="hint">この名刺を印刷して、かかりつけの患者さんにお渡しください。患者さんはQRコードまたは認証コードで登録できます。</p>
       <div id="card-preview" style="margin:14px 0;"></div>
-      <div class="print-controls">
-        <button class="btn" id="print-single-button">🖨 名刺サイズで1枚</button>
-        <span class="print-a4">
-          <button class="btn btn-secondary" id="print-sheet-button">🖨 A4に並べて印刷</button>
-          <label>A4に <input type="number" id="print-count" value="10" min="1" max="40"> 枚</label>
-        </span>
-        <button class="btn btn-secondary" id="print-flyer-button">🖨 A4チラシで印刷</button>
-      </div>
-      <p class="hint">「A4に並べて印刷」は同じ名刺をA4にまとめて印刷（枚数指定・切り取って配布）。「A4チラシ」はA4一枚の案内をそのまま患者さんにお渡しできます。</p>
+      <button class="btn" id="open-card-modal-button">🪪 名刺を見る・印刷（レイアウト選択）</button>
+      <p class="hint">押すと「名刺サイズ／A4に10枚／A4チラシ」を切り替えて確認・印刷できます。スマホで印刷できないときは、その画面をスクリーンショットして写真アプリやコンビニ印刷でも配れます。</p>
     </div>
   </section>
 
