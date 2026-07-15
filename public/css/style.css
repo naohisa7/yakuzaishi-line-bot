@@ -2481,6 +2481,62 @@ textarea {
   align-content: start;
 }
 
+/* A4チラシ（患者さんにそのままお渡しする1枚） */
+.nameflyer {
+  width: 190mm;
+  max-width: 100%;
+  margin: 0 auto;
+  background: #fff;
+  color: #1f2937;
+  border: 1px solid var(--warm-line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.nameflyer-head {
+  background: var(--brand);
+  color: #fff;
+  text-align: center;
+  padding: 9mm 8mm;
+}
+.nameflyer-logo { font-size: 18pt; vertical-align: middle; }
+.nameflyer-brand { font-size: 15pt; font-weight: 700; margin-left: 4px; vertical-align: middle; }
+.nameflyer-intro { text-align: center; padding: 7mm 10mm 3mm; }
+.nameflyer-role { color: var(--muted); font-size: 11pt; }
+.nameflyer-name { font-size: 24pt; font-weight: 800; margin: 2mm 0; word-break: break-word; }
+.nameflyer-lead { font-size: 11.5pt; color: #374151; margin: 2mm 0 0; }
+.nameflyer-qrs { display: flex; justify-content: center; gap: 18mm; padding: 4mm 0; }
+.nameflyer-qrbox { text-align: center; }
+.nameflyer-qrbox img, .nameflyer-qrsvg { width: 42mm; height: 42mm; display: block; }
+.nameflyer-qrsvg svg { width: 42mm; height: 42mm; }
+.nameflyer-qrcap { font-size: 11pt; font-weight: 700; margin-top: 2mm; color: var(--brand-dark); }
+.nameflyer-codebox {
+  margin: 4mm 12mm;
+  background: #E4F4F0;
+  border-radius: 8px;
+  text-align: center;
+  padding: 5mm;
+}
+.nameflyer-codelabel { font-size: 11pt; color: var(--brand-dark); }
+.nameflyer-code {
+  font-size: 28pt;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--brand-dark);
+  word-break: break-all;
+}
+.nameflyer-steps { display: flex; gap: 8mm; padding: 2mm 12mm 6mm; }
+.nameflyer-step {
+  flex: 1;
+  background: #f7faf9;
+  border: 1px solid var(--warm-line);
+  border-radius: 8px;
+  padding: 4mm 4mm 4mm 3mm;
+}
+.nameflyer-step-title { font-weight: 700; font-size: 12pt; margin-bottom: 2mm; }
+.nameflyer-step ol { margin: 0; padding-left: 6mm; font-size: 11pt; line-height: 1.7; }
+.nameflyer-foot { text-align: center; color: var(--muted); font-size: 10pt; padding: 0 0 7mm; }
+.nameflyer-foot span { color: var(--brand-dark); font-weight: 600; }
+
 /* 印刷用：名刺だけを出す（用紙はA4） */
 #namecard-print-area { display: none; }
 @media print {
@@ -2496,5 +2552,11 @@ textarea {
     width: 88mm;
     page-break-inside: avoid;
     break-inside: avoid;
+  }
+  body.printing-card .nameflyer {
+    width: 100%;
+    min-height: 273mm;
+    border: none;
+    border-radius: 0;
   }
 }

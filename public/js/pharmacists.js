@@ -275,6 +275,12 @@
       sheetBtn.textContent = '🪪 A4に10枚';
       sheetBtn.addEventListener('click', () => window.printNameCard(p.card, 10));
       actions.appendChild(sheetBtn);
+
+      const flyerBtn = document.createElement('button');
+      flyerBtn.className = 'btn btn-secondary';
+      flyerBtn.textContent = '📄 A4チラシ';
+      flyerBtn.addEventListener('click', () => window.printNameFlyer(p.card));
+      actions.appendChild(flyerBtn);
     }
 
     // 削除（管理者は不可）

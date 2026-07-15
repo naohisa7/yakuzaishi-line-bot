@@ -65,11 +65,76 @@
     return card;
   };
 
-  // 名刺だけを印刷する（ページの他の要素は @media print で隠す）
-  // count を 2以上にすると、A4用紙に複数枚を並べて印刷する（切り取って使える）
-  window.printNameCard = function (data, count) {
-    count = count && count > 0 ? Math.min(Math.floor(count), 40) : 1;
+  // A4一枚の案内チラシ（患者さんにそのままお渡しできる大きめの版）
+  window.buildNameFlyer = function (data) {
+    const f = el('div', 'nameflyer');
 
+    const head = el('div', 'nameflyer-head');
+    head.appendChild(el('span', 'nameflyer-logo', '💊'));
+    head.appendChild(el('span', 'nameflyer-brand', 'かかりつけ薬剤師 相談窓口'));
+    f.appendChild(head);
+
+    const intro = el('div', 'nameflyer-intro');
+    intro.appendChild(el('div', 'nameflyer-role', 'あなたの担当薬剤師'));
+    intro.appendChild(el('div', 'nameflyer-name', data.name));
+    intro.appendChild(el('p', 'nameflyer-lead', 'お薬のこと・体調のこと、LINEやホームページでいつでもご相談いただけます。'));
+    f.appendChild(intro);
+
+    const qrs = el('div', 'nameflyer-qrs');
+    const lineBox = el('div', 'nameflyer-qrbox');
+    const lImg = document.createElement('img');
+    lImg.src = '/images/line-qr.png';
+    lImg.alt = 'LINE友だち追加QR';
+    lineBox.appendChild(lImg);
+    lineBox.appendChild(el('div', 'nameflyer-qrcap', 'LINEで相談'));
+    qrs.appendChild(lineBox);
+    if (data.patientCardQr) {
+      const hpBox = el('div', 'nameflyer-qrbox');
+      const holder = el('div', 'nameflyer-qrsvg');
+      holder.innerHTML = data.patientCardQr;
+      hpBox.appendChild(holder);
+      hpBox.appendChild(el('div', 'nameflyer-qrcap', 'ホームページで相談'));
+      qrs.appendChild(hpBox);
+    }
+    f.appendChild(qrs);
+
+    const codeBox = el('div', 'nameflyer-codebox');
+    codeBox.appendChild(el('div', 'nameflyer-codelabel', 'あなた専用の認証コード'));
+    codeBox.appendChild(el('div', 'nameflyer-code', data.patientAuthCode || '未設定'));
+    f.appendChild(codeBox);
+
+    const steps = el('div', 'nameflyer-steps');
+    const s1 = el('div', 'nameflyer-step');
+    s1.appendChild(el('div', 'nameflyer-step-title', '📱 LINEで登録'));
+    const ol1 = document.createElement('ol');
+    ['QRコードを読み取って友だち追加', '上の認証コードを送信'].forEach((t) => {
+      const li = document.createElement('li');
+      li.textContent = t;
+      ol1.appendChild(li);
+    });
+    s1.appendChild(ol1);
+    const s2 = el('div', 'nameflyer-step');
+    s2.appendChild(el('div', 'nameflyer-step-title', '💻 ホームページで登録'));
+    const ol2 = document.createElement('ol');
+    ['QRコードを読み取る（認証コードは入力済み）', 'お名前を入力して同意する'].forEach((t) => {
+      const li = document.createElement('li');
+      li.textContent = t;
+      ol2.appendChild(li);
+    });
+    s2.appendChild(ol2);
+    steps.appendChild(s1);
+    steps.appendChild(s2);
+    f.appendChild(steps);
+
+    const foot = el('div', 'nameflyer-foot');
+    foot.appendChild(el('span', null, (data.patientSiteUrl || '').replace(/^https?:\/\//, '')));
+    f.appendChild(foot);
+
+    return f;
+  };
+
+  // 指定した要素だけを印刷する（ページの他の要素は @media print で隠す）
+  function printNode(node) {
     let area = document.getElementById('namecard-print-area');
     if (!area) {
       area = document.createElement('div');
@@ -77,13 +142,7 @@
       document.body.appendChild(area);
     }
     area.innerHTML = '';
-
-    const sheet = document.createElement('div');
-    sheet.className = count > 1 ? 'namecard-sheet' : 'namecard-single';
-    for (let i = 0; i < count; i++) {
-      sheet.appendChild(window.buildNameCard(data));
-    }
-    area.appendChild(sheet);
+    area.appendChild(node);
 
     document.body.classList.add('printing-card');
     const cleanup = () => {
@@ -92,5 +151,21 @@
     };
     window.addEventListener('afterprint', cleanup);
     window.print();
+  }
+
+  // 名刺を印刷する。count を 2以上にするとA4に複数枚を並べる（切り取って使える）
+  window.printNameCard = function (data, count) {
+    count = count && count > 0 ? Math.min(Math.floor(count), 40) : 1;
+    const sheet = document.createElement('div');
+    sheet.className = count > 1 ? 'namecard-sheet' : 'namecard-single';
+    for (let i = 0; i < count; i++) {
+      sheet.appendChild(window.buildNameCard(data));
+    }
+    printNode(sheet);
+  };
+
+  // A4チラシを印刷する
+  window.printNameFlyer = function (data) {
+    printNode(window.buildNameFlyer(data));
   };
 })();

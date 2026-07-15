@@ -11,6 +11,7 @@
   const cardPreview = document.getElementById('card-preview');
   const printSingleButton = document.getElementById('print-single-button');
   const printSheetButton = document.getElementById('print-sheet-button');
+  const printFlyerButton = document.getElementById('print-flyer-button');
   const printCount = document.getElementById('print-count');
 
   let currentCard = null;
@@ -115,6 +116,7 @@
   printSheetButton.addEventListener('click', () =>
     ensureCodeThen(() => window.printNameCard(currentCard, parseInt(printCount.value, 10) || 10))
   );
+  printFlyerButton.addEventListener('click', () => ensureCodeThen(() => window.printNameFlyer(currentCard)));
 
   init();
 })();
