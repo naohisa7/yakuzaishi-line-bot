@@ -36,9 +36,17 @@ async function getInterventions(patientKey) {
   return withIds;
 }
 
-async function addIntervention(patientKey, type, note) {
+async function addIntervention(patientKey, type, note, recordedBy = null) {
   const list = await getInterventions(patientKey);
-  list.unshift({ id: crypto.randomUUID(), type, note, recordedAt: new Date().toISOString() });
+  list.unshift({
+    id: crypto.randomUUID(),
+    type,
+    note,
+    recordedAt: new Date().toISOString(),
+    // 記録した薬剤師（誰が対応したか）。旧データや共通パスワードログインでは null のまま
+    pharmacistId: recordedBy ? recordedBy.pharmacistId || null : null,
+    pharmacistName: recordedBy ? recordedBy.pharmacistName || null : null,
+  });
   await redis.set(recordKey(patientKey), JSON.stringify(list.slice(0, MAX_ENTRIES)), 'EX', RECORD_TTL_SECONDS);
 }
 

@@ -71,6 +71,10 @@
       </div>
     </div>
 
+    <div id="patient-filter-bar" style="display:none; margin-bottom:10px; font-size:14px;">
+      <label><input type="checkbox" id="filter-mine-only"> 自分の担当患者のみ表示</label>
+    </div>
+
     <div class="console-layout">
       <div class="console-sidebar" id="patient-list">読み込み中...</div>
       <div class="console-chat">
@@ -86,6 +90,16 @@
               <input type="text" id="console-input" placeholder="返信を入力">
               <button id="console-send-button">送信</button>
             </div>
+          </div>
+
+          <div class="card" id="assignment-panel" style="margin-top:16px;">
+            <h4>👤 担当薬剤師</h4>
+            <p class="drug-search-hint">通常は患者さんが認証したコードで自動的に決まります。ここは訂正・変更用です。</p>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <select id="assignment-select"></select>
+              <button class="btn" id="assignment-save-button">変更する</button>
+            </div>
+            <div id="assignment-status" class="drug-search-status"></div>
           </div>
 
           <div class="card" id="intervention-panel" style="margin-top:16px;">

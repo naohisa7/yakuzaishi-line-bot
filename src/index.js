@@ -69,7 +69,8 @@ const {
   seedPharmacists,
   ensureOwnerFlag,
 } = require('./pharmacistManager');
-const { assignPharmacist } = require('./patientAssignmentManager');
+const { assignPharmacist, getAssignedPharmacistId, unassign } = require('./patientAssignmentManager');
+const { notifyPharmacistsForPatient } = require('./pharmacistNotifier');
 
 // ────────────────────────────────────
 // 環境変数チェック
@@ -336,11 +337,11 @@ app.post('/api/chat', requireWebSession, uploadImage, async (req, res) => {
       videoLink,
     });
 
-    if (needsEscalation && PHARMACIST_LINE_USER_ID) {
+    if (needsEscalation) {
       const patientName = req.webSession.patientName || '患者さん';
       const messagesSummary =
         formatPatientMessages(history) || message || '（画像が送信されました）';
-      await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
+      await notifyPharmacistsForPatient(lineClient, `web:${sessionId}`, [
         {
           type: 'text',
           text: `🔔【要対応・ホームページより】かかりつけ患者さんから相談
@@ -356,7 +357,7 @@ ${videoLink}`,
         },
         buildWebReplyButtonMessage(sessionId),
       ]);
-      console.log(`[ESCALATE-WEB] sessionId: ${sessionId} の相談を薬剤師に通知しました`);
+      console.log(`[ESCALATE-WEB] sessionId: ${sessionId} の相談を担当薬剤師に通知しました`);
     }
   } catch (err) {
     console.error('Webチャットエラー:', err);
@@ -378,22 +379,20 @@ app.post('/api/chat/resolution', requireWebSession, async (req, res) => {
 
     if (feedback) {
       await recordFeedback(patientName, feedback);
-      if (PHARMACIST_LINE_USER_ID) {
-        await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
-          {
-            type: 'text',
-            text: `📝【フィードバック詳細・ホームページより】チャットボットで解決できなかったとの回答
+      await notifyPharmacistsForPatient(lineClient, `web:${sessionId}`, [
+        {
+          type: 'text',
+          text: `📝【フィードバック詳細・ホームページより】チャットボットで解決できなかったとの回答
 ━━━━━━━━━━━━━━
 👤 ${patientName}（ホームページ）
 ━━━━━━━━━━━━━━
 💬 いただいた内容：
 ${feedback}`,
-          },
-          buildWebReplyButtonMessage(sessionId),
-        ]);
-      }
-    } else if (PHARMACIST_LINE_USER_ID) {
-      await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
+        },
+        buildWebReplyButtonMessage(sessionId),
+      ]);
+    } else {
+      await notifyPharmacistsForPatient(lineClient, `web:${sessionId}`, [
         {
           type: 'text',
           text: `❌【要フォロー・ホームページより】チャットボットで解決しなかったと回答
@@ -421,12 +420,22 @@ app.get('/guide', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/guide.html'));
 });
 
+// その患者さんの担当薬剤師名を返す。未割り当てなら従来のグローバル薬剤師名にフォールバック。
+async function resolvePharmacistNameForPatient(patientKey) {
+  const assignedId = await getAssignedPharmacistId(patientKey);
+  if (assignedId) {
+    const pharmacist = await getPharmacist(assignedId);
+    if (pharmacist && pharmacist.active) return pharmacist.name;
+  }
+  return getPharmacistName();
+}
+
 app.get('/api/medications', requireWebSession, async (req, res) => {
   try {
     const webKey = `web:${req.webSessionId}`;
     const [medications, pharmacistName, linkedLineKey] = await Promise.all([
       getMedications(webKey),
-      getPharmacistName(),
+      resolvePharmacistNameForPatient(webKey),
       getLinkedLineKey(webKey),
     ]);
     res.json({ medications, pharmacistName, linkedWithLine: !!linkedLineKey });
@@ -518,18 +527,16 @@ app.post('/api/video-call', requireWebSession, async (req, res) => {
     const videoLink = generateVideoCallLink();
     const patientName = req.webSession.patientName || '患者さん（ホームページ）';
 
-    if (PHARMACIST_LINE_USER_ID) {
-      await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
-        {
-          type: 'text',
-          text: `📹【ビデオ通話希望・ホームページより】${patientName}さんがビデオ通話を希望しています
+    await notifyPharmacistsForPatient(lineClient, `web:${req.webSessionId}`, [
+      {
+        type: 'text',
+        text: `📹【ビデオ通話希望・ホームページより】${patientName}さんがビデオ通話を希望しています
 ━━━━━━━━━━━━━━
 参加はこちら：
 ${videoLink}`,
-        },
-        buildWebReplyButtonMessage(req.webSessionId),
-      ]);
-    }
+      },
+      buildWebReplyButtonMessage(req.webSessionId),
+    ]);
 
     res.json({ videoLink });
   } catch (err) {
@@ -884,17 +891,61 @@ function computeReminderFlags(records) {
 app.get('/api/admin/patients', requireAdminSession, async (req, res) => {
   try {
     const allPatients = await getAllPatientsWithNames();
+    const roster = await listPharmacists();
+    const nameById = new Map(roster.map((p) => [p.id, p.name]));
     const patients = await Promise.all(
       allPatients.map(async ({ id, type, name, patientKey }) => {
         const flags = computeReminderFlags(await getInterventions(patientKey));
-        return { id, type, name, ...flags };
+        const assignedPharmacistId = await getAssignedPharmacistId(patientKey);
+        return {
+          id,
+          type,
+          name,
+          ...flags,
+          assignedPharmacistId: assignedPharmacistId || null,
+          assignedPharmacistName: assignedPharmacistId ? nameById.get(assignedPharmacistId) || null : null,
+        };
       })
     );
 
-    res.json({ patients });
+    res.json({
+      patients,
+      pharmacists: roster.map((p) => ({ id: p.id, name: p.name })),
+      myPharmacistId: req.pharmacistId || null,
+    });
   } catch (err) {
     console.error('患者一覧取得エラー（コンソール）:', err);
     res.status(500).json({ error: '患者一覧を取得できませんでした。' });
+  }
+});
+
+// 患者さんの担当薬剤師を割り当て・変更（訂正用の手動上書き）
+app.put('/api/admin/patients/:id/assignment', requireAdminSession, async (req, res) => {
+  try {
+    const patientKey = await resolveManagedPatientKey(req.params.id);
+    if (!patientKey) return res.status(404).json({ error: '担当されている患者さんが見つかりません。' });
+    const pharmacistId = (req.body.pharmacistId || '').trim();
+    if (!pharmacistId) return res.status(400).json({ error: '薬剤師を選択してください。' });
+    const pharmacist = await getPharmacist(pharmacistId);
+    if (!pharmacist) return res.status(404).json({ error: '該当の薬剤師が見つかりません。' });
+    await assignPharmacist(patientKey, pharmacistId);
+    res.json({ ok: true, assignedPharmacistName: pharmacist.name });
+  } catch (err) {
+    console.error('担当割り当てエラー:', err);
+    res.status(500).json({ error: '担当を割り当てできませんでした。' });
+  }
+});
+
+// 患者さんの担当割り当てを解除
+app.delete('/api/admin/patients/:id/assignment', requireAdminSession, async (req, res) => {
+  try {
+    const patientKey = await resolveManagedPatientKey(req.params.id);
+    if (!patientKey) return res.status(404).json({ error: '担当されている患者さんが見つかりません。' });
+    await unassign(patientKey);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('担当解除エラー:', err);
+    res.status(500).json({ error: '担当を解除できませんでした。' });
   }
 });
 
@@ -964,7 +1015,13 @@ app.post('/api/admin/patients/:id/interventions', requireAdminSession, async (re
 
   try {
     const patientKey = target.startsWith('web:') ? target : `line:${target}`;
-    await addIntervention(patientKey, type, note);
+    // ログイン中の薬剤師を記録者として残す
+    let recordedBy = null;
+    if (req.pharmacistId) {
+      const pharmacist = await getPharmacist(req.pharmacistId);
+      if (pharmacist) recordedBy = { pharmacistId: pharmacist.id, pharmacistName: pharmacist.name };
+    }
+    await addIntervention(patientKey, type, note, recordedBy);
     res.json({ ok: true });
   } catch (err) {
     console.error('対応記録追加エラー（コンソール）:', err);
@@ -1041,15 +1098,16 @@ app.get('/api/admin/interventions/export', requireAdminSession, async (req, res)
             channel: patient.type === 'line' ? 'LINE' : 'Web',
             typeLabel: INTERVENTION_TYPE_LABELS[r.type] || r.type,
             note: r.note || '',
+            pharmacistName: r.pharmacistName || '',
           });
         });
     }
 
     rows.sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
 
-    const header = ['日時', '患者名', 'チャネル', '種類', '内容'].join(',');
+    const header = ['日時', '患者名', 'チャネル', '種類', '内容', '記録者'].join(',');
     const lines = rows.map((r) =>
-      [r.recordedAt, r.name, r.channel, r.typeLabel, r.note].map(csvEscape).join(',')
+      [r.recordedAt, r.name, r.channel, r.typeLabel, r.note, r.pharmacistName].map(csvEscape).join(',')
     );
     const csv = '﻿' + [header, ...lines].join('\n');
 

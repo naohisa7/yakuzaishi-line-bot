@@ -688,6 +688,11 @@ label {
   color: #B0335A;
 }
 
+.reminder-badge.assignment-badge {
+  background: #EEEAFB;
+  color: #6C5CC9;
+}
+
 .intervention-month-group {
   border-bottom: 1px solid #EEE;
 }

@@ -23,6 +23,7 @@ const {
   removePharmacist,
 } = require('./pharmacistManager');
 const { assignPharmacist } = require('./patientAssignmentManager');
+const { notifyPharmacistsForPatient } = require('./pharmacistNotifier');
 const {
   setPharmacistName,
   addArticle,
@@ -156,12 +157,10 @@ async function getReplyTargetName(lineClient, target) {
  * 「解決しなかった」が押されたことを薬剤師に即座に通知
  */
 async function notifyUnresolved(lineClient, userId, videoLink) {
-  if (!PHARMACIST_LINE_USER_ID) return;
-
   const patientName = await getPatientName(lineClient, userId);
   const videoLine = videoLink ? `\n📹 ビデオ通話で参加する場合：\n${videoLink}` : '';
 
-  await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
+  await notifyPharmacistsForPatient(lineClient, `line:${userId}`, [
     {
       type: 'text',
       text: `❌【要フォロー】チャットボットで解決しなかったと回答
@@ -182,9 +181,7 @@ async function notifyFeedback(lineClient, userId, feedbackText) {
 
   await recordFeedback(patientName, feedbackText);
 
-  if (!PHARMACIST_LINE_USER_ID) return;
-
-  await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
+  await notifyPharmacistsForPatient(lineClient, `line:${userId}`, [
     {
       type: 'text',
       text: `📝【フィードバック詳細】チャットボットで解決できなかったとの回答
@@ -943,19 +940,17 @@ async function handleEvent(event, lineClient) {
 
     if (trimmedMessage === 'ビデオ通話') {
       const videoLink = generateVideoCallLink();
-      if (PHARMACIST_LINE_USER_ID) {
-        const patientName = await getPatientName(lineClient, userId);
-        await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, [
-          {
-            type: 'text',
-            text: `📹【ビデオ通話希望】${patientName}さんがビデオ通話を希望しています
+      const patientName = await getPatientName(lineClient, userId);
+      await notifyPharmacistsForPatient(lineClient, `line:${userId}`, [
+        {
+          type: 'text',
+          text: `📹【ビデオ通話希望】${patientName}さんがビデオ通話を希望しています
 ━━━━━━━━━━━━━━
 参加はこちら：
 ${videoLink}`,
-          },
-          buildReplyButtonMessage(userId),
-        ]);
-      }
+        },
+        buildReplyButtonMessage(userId),
+      ]);
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
         text: `📹 担当薬剤師にビデオ通話をご案内しました。\n下記のリンクから参加してお待ちください：\n${videoLink}`,
@@ -1027,8 +1022,8 @@ ${videoLink}`,
     }
     await lineClient.replyMessage(event.replyToken, replyMessages);
 
-    // 8. エスカレーションが必要な場合、薬剤師に通知
-    if (needsEscalation && PHARMACIST_LINE_USER_ID) {
+    // 8. エスカレーションが必要な場合、担当薬剤師に通知（未割り当ては全薬剤師へ）
+    if (needsEscalation) {
       const escalationMsg = await buildEscalationMessage(
         lineClient,
         userId,
@@ -1036,8 +1031,8 @@ ${videoLink}`,
         escalationVideoLink,
         history
       );
-      await lineClient.pushMessage(PHARMACIST_LINE_USER_ID, escalationMsg);
-      console.log(`[ESCALATE] userId: ${userId} の相談を薬剤師に通知しました`);
+      await notifyPharmacistsForPatient(lineClient, `line:${userId}`, escalationMsg);
+      console.log(`[ESCALATE] userId: ${userId} の相談を担当薬剤師に通知しました`);
 
       const linkedPeople = await getAllLinkedPeople(userId);
       if (linkedPeople.length > 0) {

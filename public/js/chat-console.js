@@ -26,6 +26,11 @@
   const reminderList = document.getElementById('reminder-list');
   const medPharmacistList = document.getElementById('console-med-pharmacist-list');
   const medPatientList = document.getElementById('console-med-patient-list');
+  const patientFilterBar = document.getElementById('patient-filter-bar');
+  const filterMineOnly = document.getElementById('filter-mine-only');
+  const assignmentSelect = document.getElementById('assignment-select');
+  const assignmentSaveButton = document.getElementById('assignment-save-button');
+  const assignmentStatus = document.getElementById('assignment-status');
 
   const INTERVENTION_LABELS = {
     follow_up: '📞 フォローアップ（電話等）',
@@ -40,6 +45,9 @@
   let selectedId = null;
   let selectedName = null;
   let pollTimer = null;
+  let roster = [];            // 薬剤師名簿 [{id, name}]
+  let myPharmacistId = null;  // ログイン中の薬剤師
+  let patientsCache = [];     // 直近取得した患者一覧（担当情報つき）
 
   function showSection(section) {
     [loginSection, dashboardSection].forEach((s) => (s.style.display = 'none'));
@@ -141,17 +149,28 @@
   async function loadPatients() {
     const res = await fetch('/api/admin/patients');
     const data = await res.json();
-    renderPatientList(data.patients || []);
+    roster = data.pharmacists || [];
+    myPharmacistId = data.myPharmacistId || null;
+    patientsCache = data.patients || [];
+    // 特定の薬剤師としてログインしているときだけ「担当のみ」フィルタを出す
+    patientFilterBar.style.display = myPharmacistId ? 'block' : 'none';
+    renderPatientList(patientsCache);
   }
 
   function renderPatientList(patients) {
-    if (patients.length === 0) {
-      patientListEl.innerHTML = '<div class="card">まだ患者さんがいません。</div>';
+    // 「自分の担当のみ」フィルタ
+    const filtered = filterMineOnly && filterMineOnly.checked && myPharmacistId
+      ? patients.filter((p) => p.assignedPharmacistId === myPharmacistId)
+      : patients;
+
+    if (filtered.length === 0) {
+      patientListEl.innerHTML = '<div class="card">' +
+        (patients.length === 0 ? 'まだ患者さんがいません。' : '担当している患者さんはいません。') + '</div>';
       return;
     }
 
     patientListEl.innerHTML = '';
-    patients.forEach((patient) => {
+    filtered.forEach((patient) => {
       const item = document.createElement('div');
       item.className = 'patient-list-item';
       if (patient.id === selectedId) item.classList.add('active');
@@ -165,6 +184,11 @@
 
       item.appendChild(badge);
       item.appendChild(name);
+
+      const assignBadge = document.createElement('span');
+      assignBadge.className = 'reminder-badge assignment-badge';
+      assignBadge.textContent = patient.assignedPharmacistName ? '担当:' + patient.assignedPharmacistName : '担当:未割当';
+      item.appendChild(assignBadge);
 
       if (patient.followUpDue) {
         const followUpBadge = document.createElement('span');
@@ -209,8 +233,8 @@
     consoleChatPanel.style.display = 'block';
 
     Array.from(patientListEl.children).forEach((item) => item.classList.remove('active'));
-    const patients = await (await fetch('/api/admin/patients')).json();
-    renderPatientList(patients.patients || []);
+    await loadPatients();
+    renderAssignment();
 
     resetInterventionForm();
     drugPicker.reset(); // 前の患者さん向けに選びかけていたお薬を持ち越さない
@@ -221,6 +245,59 @@
     await refreshMedicationLink();
     await refreshMedications();
     startPolling();
+  }
+
+  // 選択中の患者さんの担当プルダウンを、名簿と現在の割り当てで組み立てる
+  function renderAssignment() {
+    if (!assignmentSelect) return;
+    assignmentStatus.textContent = '';
+    const patient = patientsCache.find((p) => p.id === selectedId);
+    assignmentSelect.innerHTML = '';
+    const none = document.createElement('option');
+    none.value = '';
+    none.textContent = '未割当';
+    assignmentSelect.appendChild(none);
+    roster.forEach((p) => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      assignmentSelect.appendChild(opt);
+    });
+    assignmentSelect.value = (patient && patient.assignedPharmacistId) || '';
+  }
+
+  if (assignmentSaveButton) {
+    assignmentSaveButton.addEventListener('click', async () => {
+      if (!selectedId) return;
+      assignmentStatus.textContent = '';
+      const pharmacistId = assignmentSelect.value;
+      assignmentSaveButton.disabled = true;
+      try {
+        let res;
+        if (pharmacistId) {
+          res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/assignment', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pharmacistId }),
+          });
+        } else {
+          res = await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/assignment', { method: 'DELETE' });
+        }
+        const data = await res.json();
+        if (!data.ok) {
+          assignmentStatus.textContent = data.error || '担当を変更できませんでした。';
+        } else {
+          assignmentStatus.textContent = '担当を更新しました。';
+          await loadPatients();
+        }
+      } finally {
+        assignmentSaveButton.disabled = false;
+      }
+    });
+  }
+
+  if (filterMineOnly) {
+    filterMineOnly.addEventListener('change', () => renderPatientList(patientsCache));
   }
 
   function renderReminderList(reminders) {
@@ -618,7 +695,8 @@
 
     const meta = document.createElement('div');
     meta.style.cssText = 'color:var(--muted); font-size:12px;';
-    meta.textContent = date + (record.note ? ' ・ ' + record.note : '');
+    const recorder = record.pharmacistName ? ' ・ 記録者：' + record.pharmacistName : '';
+    meta.textContent = date + (record.note ? ' ・ ' + record.note : '') + recorder;
 
     textWrap.appendChild(label);
     textWrap.appendChild(meta);
