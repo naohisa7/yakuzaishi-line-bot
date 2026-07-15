@@ -8,15 +8,17 @@ LINE公式アカウント＋ホームページで、患者さんの薬相談にA
 |---|---|---|
 | LINE公式アカウント | （LINEアプリ内） | 認証コード＋同意 |
 | 患者さん向けHP | `/patient`（チャット）、`/medications`（お薬手帳）、`/guide`（使い方案内・公開） | 認証コード＋同意（`session_id`cookie） |
-| 薬剤師専用HP | `/host`（入口）→`/console`（患者対応）、`/admin`（記事管理）、`/host-guide`（マニュアル） | 共通パスワード（`admin_session`cookie） |
+| 薬剤師専用HP | `/host`（入口）→`/console`（患者対応）、`/admin`（記事管理）、`/host-guide`（マニュアル）、`/pharmacists`（薬剤師の管理・owner専用） | 薬剤師ごとのログイン（名前選択＋パスワード、`admin_session`cookie） |
 
-薬剤師専用ページのログインパスワードはLINEの「管理者パスワード変更:新パスワード」でいつでも変更可能。患者用認証コードは「認証コード変更:新コード」（LINE・HP共通）。
+**かかりつけ薬剤師は複数名（`pharmacistManager.js`）。担当は認証コードで分別する**（詳細は下の「実装済み機能」）。薬剤師専用ページのログインは薬剤師ごと（名前を選ぶ＋パスワード）。移行期は旧共通パスワードもフォールバックで受ける。薬剤師#1（＝owner）のパスワードはLINE「管理者パスワード変更:新パスワード」、認証コードは「認証コード変更:新コード」でも変更可（どちらも薬剤師#1に反映）。他の薬剤師の追加・削除・コード/パスワード設定は`/pharmacists`（owner専用）またはLINE「薬剤師追加/一覧/コード/パスワード/削除」で行う。
 
 ## 主要ファイル
 
 - `src/index.js` — Expressルート全部（LINE webhook、患者向けAPI、薬剤師向けAPI、静的ページ配信）
 - `src/lineHandler.js` — LINEメッセージの全処理（特殊コマンド分岐、返信モード、一斉送信、エスカレーション）
 - `src/claudeHandler.js` — Claude API呼び出し。`[ESCALATE]`（要対応判定）・`[SAVE_DRUG:薬品名]`（お薬手帳自動保存）タグをパース
+- `src/pharmacistManager.js` — かかりつけ薬剤師の名簿（複数名）。パスワードはscryptハッシュ、患者向け認証コードは薬剤師ごとに一意で逆引き、`owner`フラグ、起動時マイグレーション
+- `src/patientAssignmentManager.js` — 患者→担当薬剤師の紐づけ。お薬手帳と同じく`resolveBookKey()`を通す
 - 各種Managerモジュール（`*Manager.js`）— Redis永続化の薄いラッパー。基本パターンは同じ：`get*`/`add*`/`remove*`
 
 ## 患者キーの命名規則（超重要）
@@ -31,6 +33,12 @@ LINE公式アカウント＋ホームページで、患者さんの薬相談にA
 
 ## 実装済み機能（新しい順）
 
+- **かかりつけ薬剤師を複数名（4名想定）化・担当を認証コードで分別（`pharmacistManager.js` + `patientAssignmentManager.js`）**：
+  - **担当は「どの認証コードで認証したか」で決まる**。各薬剤師が固有の患者向け認証コードを持ち、患者さんがそのコードで認証（LINE：同意成立時／HP：`/api/verify`成立時）した時点で、その薬剤師が担当になる（`getPharmacistByAuthCode`で解決）。**割り当ては薬剤師が窓口で渡すコードで行う想定**（患者アプリ側からの薬剤師選択はしない）。お薬手帳と同じく`resolveBookKey()`を通すので、LINE⇔HP紐づけ済みの患者さんは担当も1つを共有
+  - **薬剤師ごとログイン**：`/console`等のログインは名前プルダウン（`/api/pharmacists`）＋パスワード。セッションに`pharmacistId`を保持（`adminSessionManager`）。名簿が空の移行期は旧共通パスワードにフォールバック（`pharmacist-login.js`が名前欄を隠す）
+  - **owner＝薬剤師#1**：起動時マイグレーションで既存の単一設定（`pharmacist_name`/`PHARMACIST_LINE_USER_ID`/`patient_passcode`/`admin_passcode`）から#1を作成し`owner`フラグを付与（`ensureOwnerFlag`は後付けも冪等に行う）。**ownerは削除不可**（Web・LINE・APIの全経路でガード）。名簿管理・認証コード変更・管理者パスワード変更はownerのみ、返信モード・患者一覧・エスカレーション受信は登録済み薬剤師全員（`lineHandler.js`のゲートを`getPharmacistByLineUserId`で一般化）
+  - **エスカレーション通知の振り分けと担当名表示は未実装（フェーズ2）**。現状は通知先が従来どおり`PHARMACIST_LINE_USER_ID`、`/medications`の薬剤師名もグローバルのまま
+  - **Web管理（`/pharmacists`・owner専用）**：薬剤師の追加・削除、認証コード・ログインパスワードの設定、LINE連携状況を確認。APIはハッシュ等を返さず状態のみ。LINEコマンドでも同等の操作が可能（`薬剤師追加/一覧/コード:ID コード/パスワード:ID パス/削除:ID`、本人がLINEから`薬剤師LINE連携:ID`で自分のuserIdを登録）
 - **画像からの読み取り精度（`imageEnhancer.js` + `claudeHandler.js`）**：LINE・HP共通。劣化画像でのベンチマークで詰めた結果、**過酷な条件で13/20→16/20剤、薬の捏造2件→0件**。要点：
   - `sharp`の`.rotate()`（引数なし＝EXIF準拠）が**必須**。無いと縦向き写真が横倒しのまま渡り、誤読どころか**実在する別の薬を捏造**する（実測で確認）
   - `resize`で**`fit: 'inside'`を絶対に省かない**。既定の`cover`は切り抜きになり、**薬品名が画像の外に切り落とされる**（実際に作り込んで発覚した不具合）
