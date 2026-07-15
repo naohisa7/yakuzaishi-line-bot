@@ -78,7 +78,14 @@
       <h3>患者さんにお渡しする名刺</h3>
       <p class="hint">この名刺を印刷して、かかりつけの患者さんにお渡しください。患者さんはQRコードまたは認証コードで登録できます。</p>
       <div id="card-preview" style="margin:14px 0;"></div>
-      <button class="btn" id="print-button">🖨 名刺を印刷する</button>
+      <div class="print-controls">
+        <button class="btn" id="print-single-button">🖨 名刺サイズで1枚</button>
+        <span class="print-a4">
+          <button class="btn btn-secondary" id="print-sheet-button">🖨 A4に並べて印刷</button>
+          <label>A4に <input type="number" id="print-count" value="10" min="1" max="40"> 枚</label>
+        </span>
+      </div>
+      <p class="hint">「A4に並べて印刷」は、同じ名刺をA4用紙にまとめて印刷します（枚数を指定して、切り取ってお使いください）。</p>
     </div>
   </section>
 

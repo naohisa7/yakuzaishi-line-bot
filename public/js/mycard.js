@@ -9,7 +9,9 @@
   const codeInput = document.getElementById('code-input');
   const codeSaveButton = document.getElementById('code-save-button');
   const cardPreview = document.getElementById('card-preview');
-  const printButton = document.getElementById('print-button');
+  const printSingleButton = document.getElementById('print-single-button');
+  const printSheetButton = document.getElementById('print-sheet-button');
+  const printCount = document.getElementById('print-count');
 
   let currentCard = null;
 
@@ -99,15 +101,20 @@
     }
   });
 
-  printButton.addEventListener('click', () => {
+  function ensureCodeThen(fn) {
     if (!currentCard) return;
     if (!currentCard.patientAuthCode) {
       codeError.textContent = '先に認証コードを設定してください。';
       codeError.style.display = 'block';
       return;
     }
-    window.printNameCard(currentCard);
-  });
+    fn();
+  }
+
+  printSingleButton.addEventListener('click', () => ensureCodeThen(() => window.printNameCard(currentCard, 1)));
+  printSheetButton.addEventListener('click', () =>
+    ensureCodeThen(() => window.printNameCard(currentCard, parseInt(printCount.value, 10) || 10))
+  );
 
   init();
 })();

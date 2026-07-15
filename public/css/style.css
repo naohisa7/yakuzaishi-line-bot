@@ -2455,9 +2455,36 @@ textarea {
 }
 .namecard-url { color: var(--brand-dark); font-weight: 600; word-break: break-all; }
 
-/* 印刷用：名刺だけを出す */
+.print-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.print-a4 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.print-a4 input[type="number"] {
+  width: 64px;
+  margin: 0;
+}
+
+/* A4に複数枚並べるときのシート（切り取って使う） */
+.namecard-sheet {
+  display: grid;
+  grid-template-columns: repeat(2, 88mm);
+  gap: 5mm;
+  justify-content: center;
+  align-content: start;
+}
+
+/* 印刷用：名刺だけを出す（用紙はA4） */
 #namecard-print-area { display: none; }
 @media print {
+  @page { size: A4; margin: 8mm; }
   body.printing-card > *:not(#namecard-print-area) { display: none !important; }
   body.printing-card #namecard-print-area {
     display: block !important;
@@ -2468,5 +2495,6 @@ textarea {
     border: 1px solid #999;
     width: 88mm;
     page-break-inside: avoid;
+    break-inside: avoid;
   }
 }

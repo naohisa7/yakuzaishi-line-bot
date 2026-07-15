@@ -262,13 +262,19 @@
     });
     actions.appendChild(saveBtn);
 
-    // 名刺を印刷（認証コードが設定済みのときのみ）
+    // 名刺を印刷（認証コードが設定済みのときのみ）。単票／A4に10枚
     if (p.card && p.card.patientAuthCode) {
       const cardBtn = document.createElement('button');
       cardBtn.className = 'btn btn-secondary';
-      cardBtn.textContent = '🪪 名刺を印刷';
-      cardBtn.addEventListener('click', () => window.printNameCard(p.card));
+      cardBtn.textContent = '🪪 名刺1枚';
+      cardBtn.addEventListener('click', () => window.printNameCard(p.card, 1));
       actions.appendChild(cardBtn);
+
+      const sheetBtn = document.createElement('button');
+      sheetBtn.className = 'btn btn-secondary';
+      sheetBtn.textContent = '🪪 A4に10枚';
+      sheetBtn.addEventListener('click', () => window.printNameCard(p.card, 10));
+      actions.appendChild(sheetBtn);
     }
 
     // 削除（管理者は不可）

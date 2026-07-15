@@ -66,7 +66,10 @@
   };
 
   // 名刺だけを印刷する（ページの他の要素は @media print で隠す）
-  window.printNameCard = function (data) {
+  // count を 2以上にすると、A4用紙に複数枚を並べて印刷する（切り取って使える）
+  window.printNameCard = function (data, count) {
+    count = count && count > 0 ? Math.min(Math.floor(count), 40) : 1;
+
     let area = document.getElementById('namecard-print-area');
     if (!area) {
       area = document.createElement('div');
@@ -74,7 +77,13 @@
       document.body.appendChild(area);
     }
     area.innerHTML = '';
-    area.appendChild(window.buildNameCard(data));
+
+    const sheet = document.createElement('div');
+    sheet.className = count > 1 ? 'namecard-sheet' : 'namecard-single';
+    for (let i = 0; i < count; i++) {
+      sheet.appendChild(window.buildNameCard(data));
+    }
+    area.appendChild(sheet);
 
     document.body.classList.add('printing-card');
     const cleanup = () => {
