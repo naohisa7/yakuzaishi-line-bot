@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yakuzaishi-static-v12';
+const CACHE_NAME = 'yakuzaishi-static-v13';
 
 const CACHEABLE_PATHS = [
   '/css/style.css',
@@ -17,6 +17,7 @@ const CACHEABLE_PATHS = [
   '/icons/icon-maskable-512.png',
   '/icons/apple-touch-icon.png',
   '/manifest.json',
+  '/manifest-host.json',
 ];
 
 self.addEventListener('install', (event) => {
