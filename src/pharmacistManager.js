@@ -73,6 +73,7 @@ async function addPharmacist(name) {
     patientAuthCode: null,
     passwordHash: null,
     lineUserId: null,
+    phone: null,
     owner: false,
     active: true,
     createdAt: new Date().toISOString(),

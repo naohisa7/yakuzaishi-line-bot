@@ -53,7 +53,7 @@ const {
 } = require('./medicationBookLinkManager');
 const { getInterventions, addIntervention, updateIntervention, removeIntervention } = require('./interventionRecordManager');
 const { getReminders, addReminder, removeReminder, listReminderPatientKeys, markSent } = require('./reminderManager');
-const { generateVideoCallLink } = require('./videoCallLink');
+const { generateVideoCallLink, buildRoomLinks } = require('./videoCallLink');
 const { formatPatientMessages } = require('./escalationSummary');
 const { getAdminPasscode } = require('./adminPasscodeManager');
 const { createAdminSession, isValidAdminSession, getSessionPharmacistId } = require('./adminSessionManager');
@@ -71,7 +71,7 @@ const {
   ensureOwnerFlag,
 } = require('./pharmacistManager');
 const { assignPharmacist, getAssignedPharmacistId, unassign } = require('./patientAssignmentManager');
-const { notifyPharmacistsForPatient } = require('./pharmacistNotifier');
+const { notifyPharmacistsForPatient, getAssignedPharmacist } = require('./pharmacistNotifier');
 
 // ────────────────────────────────────
 // 環境変数チェック
@@ -371,13 +371,16 @@ app.post('/api/chat', requireWebSession, uploadImage, async (req, res) => {
       await addMedication(`web:${sessionId}`, drugName, SOURCE_PHOTO);
     }
 
-    const videoLink = needsEscalation ? generateVideoCallLink() : undefined;
+    // 音声・ビデオは同じ通話ルーム。電話は患者さんの担当薬剤師の番号。
+    const room = needsEscalation ? buildRoomLinks() : null;
+    const videoLink = room ? room.videoLink : undefined;
 
     res.json({
       reply: replyText,
       needsEscalation,
-      phone: needsEscalation ? PHARMACIST_PHONE : undefined,
+      phone: needsEscalation ? await resolveResponsiblePhone(`web:${sessionId}`) : undefined,
       videoLink,
+      voiceLink: room ? room.voiceLink : undefined,
     });
 
     if (needsEscalation) {
@@ -471,6 +474,16 @@ async function resolvePharmacistNameForPatient(patientKey) {
     if (pharmacist && pharmacist.active) return pharmacist.name;
   }
   return getPharmacistName();
+}
+
+// その患者さんの担当薬剤師の電話番号を返す。未割り当て・未設定は共通番号にフォールバック。
+async function resolveResponsiblePhone(patientKey) {
+  try {
+    const pharmacist = await getAssignedPharmacist(patientKey);
+    return (pharmacist && pharmacist.phone) || PHARMACIST_PHONE;
+  } catch (_) {
+    return PHARMACIST_PHONE;
+  }
 }
 
 app.get('/api/medications', requireWebSession, async (req, res) => {
@@ -730,6 +743,7 @@ function toPharmacistSummary(p) {
     patientAuthCode: p.patientAuthCode || null,
     hasPassword: !!p.passwordHash,
     lineLinked: !!p.lineUserId,
+    phone: p.phone || null,
   };
 }
 
@@ -769,7 +783,7 @@ app.post('/api/admin/pharmacists', requireAdminSession, requireOwnerSession, asy
   }
 });
 
-// 薬剤師の情報を更新（名前・認証コード・パスワード。いずれも任意）
+// 薬剤師の情報を更新（名前・認証コード・パスワード・電話番号。いずれも任意）
 app.put('/api/admin/pharmacists/:id', requireAdminSession, requireOwnerSession, async (req, res) => {
   try {
     const pharmacist = await getPharmacist(req.params.id);
@@ -778,6 +792,8 @@ app.put('/api/admin/pharmacists/:id', requireAdminSession, requireOwnerSession, 
     const name = typeof req.body.name === 'string' ? req.body.name.trim() : null;
     const authCode = typeof req.body.authCode === 'string' ? req.body.authCode.trim() : null;
     const password = typeof req.body.password === 'string' ? req.body.password.trim() : null;
+    // 電話番号は空文字で「削除」も許可するため、undefined でないときに反映する
+    const phone = typeof req.body.phone === 'string' ? req.body.phone.trim() : undefined;
 
     if (name) await updatePharmacist(req.params.id, { name });
     if (authCode) {
@@ -785,6 +801,7 @@ app.put('/api/admin/pharmacists/:id', requireAdminSession, requireOwnerSession, 
       if (!result.ok) return res.json({ ok: false, message: result.message });
     }
     if (password) await setPharmacistPassword(req.params.id, password);
+    if (phone !== undefined) await updatePharmacist(req.params.id, { phone: phone || null });
 
     const updated = await getPharmacist(req.params.id);
     res.json({ ok: true, pharmacist: toPharmacistSummary(updated) });
@@ -817,10 +834,25 @@ app.get('/api/pharmacist/me', requireAdminSession, async (req, res) => {
     }
     const pharmacist = await getPharmacist(req.pharmacistId);
     if (!pharmacist) return res.json({ available: false });
-    res.json({ available: true, card: await buildCardData(pharmacist) });
+    res.json({ available: true, card: await buildCardData(pharmacist), phone: pharmacist.phone || null });
   } catch (err) {
     console.error('本人情報の取得エラー:', err);
     res.status(500).json({ error: '情報を取得できませんでした。' });
+  }
+});
+
+// 本人が自分の電話番号（エスカレーション時に患者さんへ出す番号）を設定する
+app.put('/api/pharmacist/me/phone', requireAdminSession, async (req, res) => {
+  try {
+    if (!req.pharmacistId) {
+      return res.status(400).json({ ok: false, message: 'お名前を選んでログインし直してください。' });
+    }
+    const phone = (req.body.phone || '').trim();
+    await updatePharmacist(req.pharmacistId, { phone: phone || null });
+    res.json({ ok: true, phone: phone || null });
+  } catch (err) {
+    console.error('本人の電話番号変更エラー:', err);
+    res.status(500).json({ error: '電話番号を変更できませんでした。' });
   }
 });
 

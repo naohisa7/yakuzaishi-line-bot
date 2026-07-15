@@ -239,19 +239,31 @@
     return div;
   }
 
-  function addCallBubble(phone, videoLink) {
+  function addCallBubble(phone, videoLink, voiceLink) {
     const div = document.createElement('div');
     div.className = 'bubble assistant call-bubble';
 
     const p = document.createElement('p');
-    p.textContent = 'お急ぎの場合は、担当薬剤師に直接お電話・ビデオ通話でご相談いただくこともできます。';
+    p.textContent = 'お急ぎの場合は、担当薬剤師に直接お電話、または無料の音声・ビデオ通話（アプリのインストール不要）でご相談いただけます。';
     div.appendChild(p);
 
-    const link = document.createElement('a');
-    link.className = 'call-link';
-    link.href = 'tel:' + phone.replace(/[^0-9+]/g, '');
-    link.textContent = '📞 ' + phone + ' に電話する';
-    div.appendChild(link);
+    if (phone) {
+      const link = document.createElement('a');
+      link.className = 'call-link';
+      link.href = 'tel:' + phone.replace(/[^0-9+]/g, '');
+      link.textContent = '📞 担当薬剤師に電話する（' + phone + '）';
+      div.appendChild(link);
+    }
+
+    if (voiceLink) {
+      const voiceBtn = document.createElement('a');
+      voiceBtn.className = 'call-link video-call-link';
+      voiceBtn.href = voiceLink;
+      voiceBtn.target = '_blank';
+      voiceBtn.rel = 'noopener noreferrer';
+      voiceBtn.textContent = '🎙️ 音声通話で相談する（無料）';
+      div.appendChild(voiceBtn);
+    }
 
     if (videoLink) {
       const videoBtn = document.createElement('a');
@@ -259,7 +271,7 @@
       videoBtn.href = videoLink;
       videoBtn.target = '_blank';
       videoBtn.rel = 'noopener noreferrer';
-      videoBtn.textContent = '📹 ビデオ通話で相談する';
+      videoBtn.textContent = '📹 ビデオ通話で相談する（無料）';
       div.appendChild(videoBtn);
     }
 
@@ -687,7 +699,7 @@
         addBubble('assistant', data.reply);
       }
       if (data.needsEscalation && data.phone) {
-        addCallBubble(data.phone, data.videoLink);
+        addCallBubble(data.phone, data.videoLink, data.voiceLink);
       } else if (data.reply) {
         // すぐには聞かず、一定時間これ以上メッセージが来なければ
         // 会話が一段落したとみなして「解決したか」を確認する

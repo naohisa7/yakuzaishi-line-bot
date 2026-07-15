@@ -227,6 +227,13 @@
     passInput.placeholder = p.hasPassword ? '変更する場合のみ入力' : '新しいパスワード';
     card.appendChild(field('ログインパスワード', passInput));
 
+    // 電話番号（エスカレーション時に患者さんへ表示する連絡先）
+    const phoneInput = document.createElement('input');
+    phoneInput.type = 'tel';
+    phoneInput.value = p.phone || '';
+    phoneInput.placeholder = '例：090-1234-5678';
+    card.appendChild(field('電話番号（患者さんへの連絡先）', phoneInput));
+
     // ボタン
     const actions = document.createElement('div');
     actions.className = 'pharma-actions';
@@ -240,6 +247,7 @@
       if (nameInput.value.trim() && nameInput.value.trim() !== p.name) body.name = nameInput.value.trim();
       if (codeInput.value.trim() !== (p.patientAuthCode || '')) body.authCode = codeInput.value.trim();
       if (passInput.value.trim()) body.password = passInput.value.trim();
+      if (phoneInput.value.trim() !== (p.phone || '')) body.phone = phoneInput.value.trim();
       if (Object.keys(body).length === 0) {
         err.textContent = '変更点がありません。';
         err.style.display = 'block';

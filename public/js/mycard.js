@@ -9,6 +9,9 @@
   const codeInput = document.getElementById('code-input');
   const codeSaveButton = document.getElementById('code-save-button');
   const cardPreview = document.getElementById('card-preview');
+  const phoneInput = document.getElementById('phone-input');
+  const phoneSaveButton = document.getElementById('phone-save-button');
+  const phoneStatus = document.getElementById('phone-status');
   const printSingleButton = document.getElementById('print-single-button');
   const printSheetButton = document.getElementById('print-sheet-button');
   const printFlyerButton = document.getElementById('print-flyer-button');
@@ -40,6 +43,7 @@
     }
     currentCard = data.card;
     showSection(dashboardSection);
+    phoneInput.value = data.phone || '';
     render();
   }
 
@@ -49,6 +53,24 @@
     cardPreview.innerHTML = '';
     cardPreview.appendChild(window.buildNameCard(currentCard));
   }
+
+  phoneSaveButton.addEventListener('click', async () => {
+    phoneStatus.textContent = '';
+    phoneSaveButton.disabled = true;
+    try {
+      const res = await fetch('/api/pharmacist/me/phone', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phoneInput.value.trim() }),
+      });
+      const data = await res.json();
+      phoneStatus.textContent = data.ok
+        ? '電話番号を保存しました。'
+        : data.message || data.error || '保存できませんでした。';
+    } finally {
+      phoneSaveButton.disabled = false;
+    }
+  });
 
   document.getElementById('login-button').addEventListener('click', async () => {
     const password = document.getElementById('password-input').value.trim();

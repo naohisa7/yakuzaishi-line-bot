@@ -42,4 +42,15 @@ async function notifyPharmacistsForPatient(lineClient, patientKey, messages) {
   return recipients.length;
 }
 
-module.exports = { getNotifyLineIdsForPatient, notifyPharmacistsForPatient };
+/**
+ * その患者さんの担当薬剤師（アクティブ）を返す。未割り当て・非アクティブなら null。
+ * 電話番号や担当名を使いたいときに使う。
+ */
+async function getAssignedPharmacist(patientKey) {
+  const id = await getAssignedPharmacistId(patientKey);
+  if (!id) return null;
+  const pharmacist = await getPharmacist(id);
+  return pharmacist && pharmacist.active ? pharmacist : null;
+}
+
+module.exports = { getNotifyLineIdsForPatient, notifyPharmacistsForPatient, getAssignedPharmacist };

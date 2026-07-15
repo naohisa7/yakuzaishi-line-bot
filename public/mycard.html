@@ -72,6 +72,13 @@
       <input type="text" id="code-input" placeholder="例：TANAKA01">
       <p class="hint">半角英数字がおすすめです。他の薬剤師と重複するコードは使えません。変更すると名刺も自動で更新されます。</p>
       <button class="btn" id="code-save-button">認証コードを保存</button>
+
+      <hr style="margin:18px 0; border:none; border-top:1px solid var(--warm-line);">
+      <div id="phone-status" class="drug-search-status"></div>
+      <label for="phone-input">電話番号（エスカレーション時に患者さんへ表示する連絡先）</label>
+      <input type="tel" id="phone-input" placeholder="例：090-1234-5678">
+      <p class="hint">患者さんが「担当薬剤師に電話」を押したときに、この番号に発信されます。空欄にすると共通の番号が使われます。</p>
+      <button class="btn" id="phone-save-button">電話番号を保存</button>
     </div>
 
     <div class="card">
