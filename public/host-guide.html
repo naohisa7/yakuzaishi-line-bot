@@ -65,6 +65,10 @@
       <div class="card-icon-circle lg c-purple">🔑</div>
       <h3>パスワードを入力してください</h3>
       <div class="error" id="login-error" style="display:none"></div>
+      <div id="pharmacist-select-wrap">
+        <label for="pharmacist-select">お名前</label>
+        <select id="pharmacist-select"><option value="">選択してください</option></select>
+      </div>
       <label for="password-input">パスワード</label>
       <input type="password" id="password-input" placeholder="/admin・/consoleと同じパスワード">
       <button class="btn" id="login-button">ログイン</button>
@@ -270,6 +274,7 @@
 </footer>
 
 <script src="/js/site.js"></script>
+<script src="/js/pharmacist-login.js"></script>
 <script src="/js/host-guide.js"></script>
 </body>
 </html>

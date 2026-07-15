@@ -14,7 +14,6 @@ const nodemailer = require('nodemailer');
 const line = require('@line/bot-sdk');
 const { handleEvent } = require('./lineHandler');
 const { askClaude, extractMedicationsFromImage } = require('./claudeHandler');
-const { getPasscode } = require('./passcodeManager');
 const { createSession, getSession, markConsented, touchSession, listSessionIds, removeSessionId, deleteSession } = require('./webSessionManager');
 const { addMessage, getHistory } = require('./webConversationManager');
 const { getHistory: getLineHistory, addMessage: addLineMessage } = require('./conversationManager');
@@ -56,7 +55,15 @@ const { getReminders, addReminder, removeReminder, listReminderPatientKeys, mark
 const { generateVideoCallLink } = require('./videoCallLink');
 const { formatPatientMessages } = require('./escalationSummary');
 const { getAdminPasscode } = require('./adminPasscodeManager');
-const { createAdminSession, isValidAdminSession } = require('./adminSessionManager');
+const { createAdminSession, isValidAdminSession, getSessionPharmacistId } = require('./adminSessionManager');
+const {
+  listPharmacists,
+  getPharmacist,
+  getPharmacistByAuthCode,
+  verifyPassword: verifyPharmacistPassword,
+  seedPharmacists,
+} = require('./pharmacistManager');
+const { assignPharmacist } = require('./patientAssignmentManager');
 
 // ────────────────────────────────────
 // 環境変数チェック
@@ -199,12 +206,15 @@ app.post('/api/verify', async (req, res) => {
     return res.json({ ok: false, message: 'お名前と認証コードを入力してください。' });
   }
 
-  const currentPasscode = await getPasscode();
-  if (!currentPasscode || passcode !== currentPasscode) {
+  // 入力されたコードが、どの薬剤師の認証コードか解決する（＝担当薬剤師）
+  const pharmacist = await getPharmacistByAuthCode(passcode.trim());
+  if (!pharmacist) {
     return res.json({ ok: false, message: '認証コードが正しくありません。' });
   }
 
   const sessionId = await createSession(name);
+  // この患者さんの担当として紐づける
+  await assignPharmacist(`web:${sessionId}`, pharmacist.id);
   res.cookie('session_id', sessionId, {
     httpOnly: true,
     signed: true,
@@ -578,21 +588,53 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/admin.html'));
 });
 
+// ログイン画面の薬剤師名プルダウン用（IDと名前だけ・公開情報）
+app.get('/api/pharmacists', async (req, res) => {
+  try {
+    const list = await listPharmacists();
+    res.json({ pharmacists: list.filter((p) => p.active).map((p) => ({ id: p.id, name: p.name })) });
+  } catch (err) {
+    console.error('薬剤師一覧の取得エラー:', err);
+    res.json({ pharmacists: [] });
+  }
+});
+
 app.get('/api/admin/session-status', async (req, res) => {
   const adminSessionId = req.signedCookies.admin_session;
   const authenticated = await isValidAdminSession(adminSessionId);
-  res.json({ authenticated });
+  let pharmacistName = null;
+  if (authenticated) {
+    const pharmacistId = await getSessionPharmacistId(adminSessionId);
+    if (pharmacistId) {
+      const pharmacist = await getPharmacist(pharmacistId);
+      pharmacistName = pharmacist ? pharmacist.name : null;
+    }
+  }
+  res.json({ authenticated, pharmacistName });
 });
 
 app.post('/api/admin/login', async (req, res) => {
   const password = (req.body.password || '').trim();
-  const currentPasscode = await getAdminPasscode();
+  const pharmacistId = (req.body.pharmacistId || '').trim();
 
-  if (!currentPasscode || password !== currentPasscode) {
-    return res.json({ ok: false, message: 'パスワードが正しくありません。' });
+  let sessionPharmacistId = null;
+
+  if (pharmacistId) {
+    // 薬剤師を選んでのログイン（個別パスワード照合）
+    const ok = await verifyPharmacistPassword(pharmacistId, password);
+    if (!ok) {
+      return res.json({ ok: false, message: 'パスワードが正しくありません。' });
+    }
+    sessionPharmacistId = pharmacistId;
+  } else {
+    // 移行期のフォールバック：共通パスワード（薬剤師を特定せずログイン）
+    const currentPasscode = await getAdminPasscode();
+    if (!currentPasscode || password !== currentPasscode) {
+      return res.json({ ok: false, message: 'パスワードが正しくありません。' });
+    }
   }
 
-  const adminSessionId = await createAdminSession();
+  const adminSessionId = await createAdminSession(sessionPharmacistId);
   res.cookie('admin_session', adminSessionId, {
     httpOnly: true,
     signed: true,
@@ -610,6 +652,7 @@ async function requireAdminSession(req, res, next) {
     return res.status(401).json({ error: '管理者ログインが必要です。' });
   }
 
+  req.pharmacistId = await getSessionPharmacistId(adminSessionId);
   next();
 }
 
@@ -1391,5 +1434,6 @@ server.listen(PORT, () => {
   setTimeout(async () => {
     await seedDefaultArticles().catch(() => {});
     await removeLegacyArticles().catch(() => {});
+    await seedPharmacists().catch(() => {});
   }, 3000);
 });

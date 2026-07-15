@@ -6,11 +6,23 @@ const { markAwaitingFeedback, isAwaitingFeedback, clearAwaitingFeedback } = requ
 const { recordFeedback, getRecentFeedback } = require('./feedbackLogManager');
 const BROADCAST_TEMPLATES = require('./broadcastTemplates');
 const { generateLinkCode, resolveLinkCode, linkPerson, getAllLinkedPeople } = require('./caregiverManager');
-const { markPendingConsent, isPendingConsent, clearPendingConsent } = require('./consentManager');
+const { markPendingConsent, isPendingConsent, getPendingConsent, clearPendingConsent } = require('./consentManager');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { startReply, getReplyTarget, clearReply } = require('./replyManager');
 const { setPendingBroadcast, getPendingBroadcast, clearPendingBroadcast } = require('./pendingBroadcastManager');
 const { getPasscode, setPasscode } = require('./passcodeManager');
+const {
+  getPharmacist,
+  getPharmacistByAuthCode,
+  getPharmacistByLineUserId,
+  listPharmacists,
+  addPharmacist,
+  updatePharmacist,
+  setAuthCode,
+  setPassword: setPharmacistPassword,
+  removePharmacist,
+} = require('./pharmacistManager');
+const { assignPharmacist } = require('./patientAssignmentManager');
 const {
   setPharmacistName,
   addArticle,
@@ -454,8 +466,11 @@ async function handleEvent(event, lineClient) {
       return lineClient.replyMessage(event.replyToken, medicationReply);
     }
 
-    // 薬剤師がボタンからチャット返信を開始する場合
-    if (PHARMACIST_LINE_USER_ID && postbackUserId === PHARMACIST_LINE_USER_ID) {
+    // 薬剤師がボタンからチャット返信を開始する場合（登録済みの薬剤師なら誰でも）
+    const isPharmacistPostback =
+      (!!PHARMACIST_LINE_USER_ID && postbackUserId === PHARMACIST_LINE_USER_ID) ||
+      !!(await getPharmacistByLineUserId(postbackUserId));
+    if (isPharmacistPostback) {
       const match = event.postback.data.match(/^reply:(U[0-9a-f]{32}|web:[0-9a-f-]{36})$/);
       if (match) {
         const target = match[1];
@@ -479,6 +494,12 @@ async function handleEvent(event, lineClient) {
   const isImage = event.message.type === 'image';
   const userMessage = isImage ? null : event.message.text;
 
+  // この送信者が登録済みの薬剤師本人かどうか。
+  // isOwner … 環境変数で指定された元々の管理者（1人）。roster・セキュリティ系コマンドはこの人だけ。
+  // isPharmacistUser … 名簿に登録された薬剤師全員（返信モード・患者一覧・エスカレーション受信が使える）。
+  const isOwner = !!PHARMACIST_LINE_USER_ID && userId === PHARMACIST_LINE_USER_ID;
+  const isPharmacistUser = isOwner || !!(await getPharmacistByLineUserId(userId));
+
   // -2. お薬手帳の登録中に写真が送られたら、そこから薬品名を読み取って登録予定に積む
   //     （患者さん・薬剤師 共通。AIチャットや患者さんへの転送より前に処理しないと横取りされる）
   if (isImage) {
@@ -491,8 +512,8 @@ async function handleEvent(event, lineClient) {
     event.__imageBase64 = imageBase64;
   }
 
-  // -1. 薬剤師からの一斉送信コマンド（フォローアップ等）
-  if (!isImage && PHARMACIST_LINE_USER_ID && userId === PHARMACIST_LINE_USER_ID) {
+  // -1. 薬剤師からのコマンド（返信モード・お薬手帳登録・患者一覧・一斉送信・記事管理 等）
+  if (!isImage && isPharmacistUser) {
     const trimmedAdminMessage = userMessage.trim();
 
     // お薬手帳の登録中は、その入力（検索語・番号）を最優先で処理する
@@ -606,35 +627,108 @@ async function handleEvent(event, lineClient) {
       });
     }
 
-    // 「認証コード変更:新しいコード」でLINE・ホームページ共通の認証コードを変更
+    // 「認証コード変更:新しいコード」で薬剤師#1の患者向け認証コードを変更（管理者のみ）
     const passcodeChangeMatch = trimmedAdminMessage.match(/^認証コード変更[:：]\s*(\S+)$/);
-    if (passcodeChangeMatch) {
-      await setPasscode(passcodeChangeMatch[1]);
+    if (isOwner && passcodeChangeMatch) {
+      const code = passcodeChangeMatch[1];
+      await setPasscode(code);
+      const [first] = await listPharmacists();
+      if (first) await setAuthCode(first.id, code);
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
-        text: `認証コードを更新しました。\n新しいコード：${passcodeChangeMatch[1]}\n（ホームページも同じコードで認証されます）`,
+        text: `認証コードを更新しました。\n新しいコード：${code}\n（ホームページも同じコードで認証されます）`,
       });
     }
 
-    // 「管理者パスワード変更:新しいパスワード」でホームページの記事管理ページ用パスワードを変更
+    // 「管理者パスワード変更:新しいパスワード」で薬剤師#1のログインパスワードを変更（管理者のみ）
     const adminPasscodeChangeMatch = trimmedAdminMessage.match(/^管理者パスワード変更[:：]\s*(\S+)$/);
-    if (adminPasscodeChangeMatch) {
+    if (isOwner && adminPasscodeChangeMatch) {
       await setAdminPasscode(adminPasscodeChangeMatch[1]);
+      const [first] = await listPharmacists();
+      if (first) await setPharmacistPassword(first.id, adminPasscodeChangeMatch[1]);
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
-        text: `記事管理ページ（ホームページの /admin ）用のパスワードを更新しました。\n新しいパスワード：${adminPasscodeChangeMatch[1]}`,
+        text: `薬剤師専用ページのパスワードを更新しました。\n新しいパスワード：${adminPasscodeChangeMatch[1]}`,
       });
     }
 
-    // 「薬剤師名変更:氏名」でお薬手帳ページに表示するかかりつけ薬剤師名を更新
+    // 「薬剤師名変更:氏名」でお薬手帳ページに表示するかかりつけ薬剤師名を更新（管理者のみ）
     const pharmacistNameMatch = trimmedAdminMessage.match(/^薬剤師名変更[:：]\s*(.+)$/);
-    if (pharmacistNameMatch) {
+    if (isOwner && pharmacistNameMatch) {
       const name = pharmacistNameMatch[1].trim();
       await setPharmacistName(name);
+      const [first] = await listPharmacists();
+      if (first) await updatePharmacist(first.id, { name });
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
         text: `かかりつけ薬剤師名を更新しました。\n新しい名前：${name}\n（ホームページの「お薬手帳」ページに反映されます）`,
       });
+    }
+
+    // ── 薬剤師名簿の管理（管理者のみ）──
+
+    // 「薬剤師追加:氏名」で薬剤師を追加
+    const pharmacistAddMatch = trimmedAdminMessage.match(/^薬剤師追加[:：]\s*(.+)$/);
+    if (isOwner && pharmacistAddMatch) {
+      const name = pharmacistAddMatch[1].trim();
+      const p = await addPharmacist(name);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `薬剤師「${name}」を追加しました。\nID：${p.id}\n\n続けて設定してください：\n・「薬剤師コード:${p.id} 認証コード」（患者さん用）\n・「薬剤師パスワード:${p.id} パスワード」（ログイン用）\n・本人のLINEから「薬剤師LINE連携:${p.id}」（通知の受け取り用）`,
+      });
+    }
+
+    // 「薬剤師一覧」で名簿・各自の設定状況を確認
+    if (isOwner && trimmedAdminMessage === '薬剤師一覧') {
+      const list = await listPharmacists();
+      if (list.length === 0) {
+        return lineClient.replyMessage(event.replyToken, { type: 'text', text: 'まだ薬剤師が登録されていません。「薬剤師追加:氏名」で追加してください。' });
+      }
+      const listText = list
+        .map((p) => {
+          const code = p.patientAuthCode ? `認証コード:${p.patientAuthCode}` : '認証コード:未設定';
+          const pass = p.passwordHash ? 'パスワード:設定済' : 'パスワード:未設定';
+          const line = p.lineUserId ? 'LINE:連携済' : 'LINE:未連携';
+          return `👤 ${p.name}\nID:${p.id}\n${code} / ${pass} / ${line}`;
+        })
+        .join('\n━━━━━━━━━━━━━━\n');
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `👥 薬剤師一覧\n━━━━━━━━━━━━━━\n${listText}`,
+      });
+    }
+
+    // 「薬剤師コード:ID 認証コード」で患者向け認証コードを設定
+    const pharmacistCodeMatch = trimmedAdminMessage.match(/^薬剤師コード[:：]\s*(\S+)\s+(\S+)$/);
+    if (isOwner && pharmacistCodeMatch) {
+      const result = await setAuthCode(pharmacistCodeMatch[1], pharmacistCodeMatch[2]);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: result.ok
+          ? `認証コードを設定しました。\nこのコードで認証した患者さんが、この薬剤師の担当になります。`
+          : result.message,
+      });
+    }
+
+    // 「薬剤師パスワード:ID パスワード」でログインパスワードを設定
+    const pharmacistPassMatch = trimmedAdminMessage.match(/^薬剤師パスワード[:：]\s*(\S+)\s+(\S+)$/);
+    if (isOwner && pharmacistPassMatch) {
+      const ok = await setPharmacistPassword(pharmacistPassMatch[1], pharmacistPassMatch[2]);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: ok ? 'ログインパスワードを設定しました。' : '該当の薬剤師IDが見つかりませんでした。',
+      });
+    }
+
+    // 「薬剤師削除:ID」で薬剤師を名簿から削除
+    const pharmacistDeleteMatch = trimmedAdminMessage.match(/^薬剤師削除[:：]\s*(\S+)$/);
+    if (isOwner && pharmacistDeleteMatch) {
+      const target = await getPharmacist(pharmacistDeleteMatch[1]);
+      if (!target) {
+        return lineClient.replyMessage(event.replyToken, { type: 'text', text: '該当の薬剤師IDが見つかりませんでした。' });
+      }
+      await removePharmacist(target.id);
+      return lineClient.replyMessage(event.replyToken, { type: 'text', text: `薬剤師「${target.name}」を名簿から削除しました。` });
     }
 
     // 「記事追加:タイトル\n本文」でお薬についての記事を投稿
@@ -705,6 +799,27 @@ async function handleEvent(event, lineClient) {
     }
   }
 
+  // 薬剤師本人が、自分のLINEを名簿に連携する（未認証でも受け付ける）
+  // ※ 追加直後の薬剤師はまだ名簿にLINE未連携で「患者」として扱われるため、認証チェックより前に処理する。
+  //    IDは管理者から本人へ直接共有される（UUIDのため推測は困難）。
+  if (!isImage) {
+    const pharmacistLinkMatch = userMessage.trim().match(/^薬剤師LINE連携[:：]\s*(\S+)$/);
+    if (pharmacistLinkMatch) {
+      const target = await getPharmacist(pharmacistLinkMatch[1]);
+      if (!target) {
+        return lineClient.replyMessage(event.replyToken, {
+          type: 'text',
+          text: '該当の薬剤師IDが見つかりません。IDをご確認ください。',
+        });
+      }
+      await updatePharmacist(target.id, { lineUserId: userId });
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: `${target.name}さんのLINEを連携しました😊\n今後、担当患者さんのエスカレーション通知が届き、返信モードなどもご利用いただけます。`,
+      });
+    }
+  }
+
   // ご家族・介護者の連携コード確認（未認証でも受け付ける）
   if (!isImage && /^\d{6}$/.test(userMessage.trim())) {
     const resolved = await resolveLinkCode(userMessage.trim());
@@ -735,8 +850,13 @@ async function handleEvent(event, lineClient) {
       const trimmedConsent = !isImage ? userMessage.trim() : '';
 
       if (trimmedConsent === '同意する') {
+        const pending = getPendingConsent(userId);
         clearPendingConsent(userId);
         await authorize(userId);
+        // 認証コードで解決した薬剤師を、この患者さんの担当として紐づける
+        if (pending && pending.pharmacistId) {
+          await assignPharmacist(`line:${userId}`, pending.pharmacistId);
+        }
         return lineClient.replyMessage(event.replyToken, {
           type: 'text',
           text: '認証されました😊\nお薬について何でもご相談ください。',
@@ -754,12 +874,16 @@ async function handleEvent(event, lineClient) {
       return lineClient.replyMessage(event.replyToken, buildConsentPrompt());
     }
 
-    if (!isImage && userMessage.trim() === currentPasscode) {
-      markPendingConsent(userId);
-      return lineClient.replyMessage(event.replyToken, [
-        { type: 'text', text: PRIVACY_POLICY_TEXT },
-        buildConsentPrompt(),
-      ]);
+    if (!isImage) {
+      // 入力されたコードが、どの薬剤師の認証コードか解決する（＝担当薬剤師）
+      const pharmacist = await getPharmacistByAuthCode(userMessage.trim());
+      if (pharmacist) {
+        markPendingConsent(userId, { pharmacistId: pharmacist.id });
+        return lineClient.replyMessage(event.replyToken, [
+          { type: 'text', text: PRIVACY_POLICY_TEXT },
+          buildConsentPrompt(),
+        ]);
+      }
     }
 
     return lineClient.replyMessage(event.replyToken, {
