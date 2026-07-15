@@ -49,6 +49,7 @@ LINE公式アカウント＋ホームページで、患者さんの薬相談にA
     - **順序が重要**：登録セッション中の入力は、テキストも画像も、薬剤師の「返信転送」より前・患者のAIチャットより前に処理すること（後ろに置くと入力が横取りされる）
     - 写真の取得（`fetchImageBase64`）は登録チェックで一度だけ行い、AIチャットに流す場合は`event.__imageBase64`で使い回す（LINEから二重にダウンロードしない）
     - LINEのクイックリプライは**最大13個・ラベル20文字**まで。候補は10件に絞り、長い薬品名は省略して収めている
+- **お薬の記事の初期コンテンツ（`defaultArticles.js`）**：厚労省・PMDA・くすりの適正使用協議会・日本薬剤師会・国立成育医療研究センター・消費者庁など**公的機関の一次情報で裏付けた10記事**（飲み忘れ・グレープフルーツ・抗菌薬の飲みきり・ジェネリック・お薬手帳・PTP誤飲・保管・成分の重複・ポリファーマシー・妊娠授乳）。各記事末尾に参考URLと免責文を付けている。サーバー起動時に`contentManager.seedDefaultArticles()`が**一度だけ**Redisへ投入（`articles_seeded_v1`フラグで冪等、同名記事はスキップ）。投入後は通常記事と同じく`/admin`・LINEで編集・削除できる（削除しても再投入されない）。**医療情報なので内容変更時は必ず一次情報を確認すること**
 - **プライバシーポリシー・利用規約（`/privacy`・`/terms`）**：全ページのフッターからリンク。本文は`GET /api/legal`が`privacyPolicy.js`の`PRIVACY_POLICY_TEXT`（同意フローと共用＝二重管理しない）と`termsOfService.js`の`TERMS_OF_SERVICE_TEXT`を返し、`public/js/legal.js`が`data-legal`属性を見て描画する。どちらも`PHARMACIST_PHONE`環境変数を本文に埋め込む
 - **SEO**：meta description・OGP・Pharmacy構造化データ（index.htmlのみ）・`robots.txt`・`sitemap.xml`・スタッフページへの`noindex`
 - **アップロード検証**：`/api/chat`の画像アップロードにmulter `fileFilter`（画像MIMEタイプのみ許可）＋`sharp`再エンコードで無害化

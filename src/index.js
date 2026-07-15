@@ -24,7 +24,15 @@ const { enhanceImageToBase64 } = require('./imageEnhancer');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { TERMS_OF_SERVICE_TEXT } = require('./termsOfService');
 const { registerSocket, unregisterSocket, popPendingMessages, sendToSession } = require('./wsManager');
-const { getPharmacistName, getArticles, getArticle, addArticle, updateArticle, deleteArticle } = require('./contentManager');
+const {
+  getPharmacistName,
+  getArticles,
+  getArticle,
+  addArticle,
+  updateArticle,
+  deleteArticle,
+  seedDefaultArticles,
+} = require('./contentManager');
 const { recordFeedback } = require('./feedbackLogManager');
 const {
   getMedications,
@@ -1376,4 +1384,9 @@ server.listen(PORT, () => {
 📡 Webhook: http://localhost:${PORT}/webhook
 🖥️  Web:     http://localhost:${PORT}/
   `);
+
+  // 初期記事（お薬の記事）を一度だけ投入する。Redis接続後に走らせたいので少し待つ
+  setTimeout(() => {
+    seedDefaultArticles().catch(() => {});
+  }, 3000);
 });
