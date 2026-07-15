@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>仕事のご依頼 | かかりつけ薬剤師</title>
-<meta name="description" content="講演・執筆・取材などのお仕事のご依頼はこちらから承っております。">
+<title>お問い合わせ | かかりつけ薬剤師</title>
+<meta name="description" content="患者様以外からのお問い合わせ（取材・ご連絡・お仕事のご依頼など）はこちらから承っております。">
 <link rel="canonical" href="https://yakuzaishi-line-bot.onrender.com/contact">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="かかりつけ薬剤師">
-<meta property="og:title" content="仕事のご依頼 | かかりつけ薬剤師">
-<meta property="og:description" content="講演・執筆・取材などのお仕事のご依頼はこちらから承っております。">
+<meta property="og:title" content="お問い合わせ | かかりつけ薬剤師">
+<meta property="og:description" content="患者様以外からのお問い合わせ（取材・ご連絡・お仕事のご依頼など）はこちらから承っております。">
 <meta property="og:url" content="https://yakuzaishi-line-bot.onrender.com/contact">
 <meta property="og:image" content="https://yakuzaishi-line-bot.onrender.com/icons/icon-512.png">
 <meta name="twitter:card" content="summary">
@@ -29,7 +29,7 @@
   <div class="nav-links">
     <a href="/profile">プロフィール</a>
     <a href="/articles">お薬の記事</a>
-    <a href="/contact">仕事のご依頼</a>
+    <a href="/contact">お問い合わせ</a>
     <a href="/patient" class="nav-cta">患者様はこちら</a>
   </div>
 </nav>
@@ -39,8 +39,8 @@
   <span class="hero-deco deco-4" aria-hidden="true">✉️</span>
   <span class="hero-deco deco-5" aria-hidden="true">✚</span>
   <span class="hero-deco deco-6" aria-hidden="true">📎</span>
-  <h1 class="reveal">💼 仕事のご依頼</h1>
-  <p class="reveal delay-1">講演・執筆・取材などのご依頼はこちらから</p>
+  <h1 class="reveal">💼 お問い合わせ</h1>
+  <p class="reveal delay-1">患者様以外からのお問い合わせはこちらから<br>（取材・ご連絡・お仕事のご依頼など）</p>
 </div>
 <div class="page-wave">
   <svg viewBox="0 0 500 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -57,6 +57,10 @@
 <div class="container">
   <div class="card tilt-card reveal-on-scroll reveal-up">
     <div class="card-icon-circle lg c-amber">💼</div>
+    <p style="color:var(--muted); font-size:14px; line-height:1.7; margin-top:0;">
+      取材・ご連絡・お仕事のご依頼など、患者様以外からのお問い合わせを承ります。<br>
+      <strong>お薬のご相談は、こちらではお受けできません。</strong>かかりつけの患者様は<a href="/patient">患者様専用ページ</a>またはLINEをご利用ください。
+    </p>
     <div class="error" id="contact-error" style="display:none"></div>
     <div id="contact-success" style="display:none">
       <p>お問い合わせありがとうございました。内容を確認のうえ、担当よりご連絡いたします。</p>
@@ -66,7 +70,7 @@
       <input type="text" id="contact-name">
       <label for="contact-email">ご連絡先メールアドレス</label>
       <input type="text" id="contact-email">
-      <label for="contact-message">ご依頼内容</label>
+      <label for="contact-message">お問い合わせ内容</label>
       <textarea id="contact-message" rows="6"></textarea>
       <button type="submit" class="btn">送信する</button>
     </form>
@@ -79,7 +83,7 @@
     <div class="footer-links">
       <a href="/profile">プロフィール</a>
       <a href="/articles">お薬の記事</a>
-      <a href="/contact">仕事のご依頼</a>
+      <a href="/contact">お問い合わせ</a>
       <a href="/patient">患者様はこちら</a>
       <a href="/guide">ご利用ガイド</a>
     </div>
