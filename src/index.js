@@ -23,7 +23,7 @@ const BROADCAST_TEMPLATES = require('./broadcastTemplates');
 const { enhanceImageToBase64 } = require('./imageEnhancer');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { registerSocket, unregisterSocket, popPendingMessages, sendToSession } = require('./wsManager');
-const { getProfile, getPharmacistName, getArticles, getArticle, addArticle, updateArticle, deleteArticle } = require('./contentManager');
+const { getPharmacistName, getArticles, getArticle, addArticle, updateArticle, deleteArticle } = require('./contentManager');
 const { recordFeedback } = require('./feedbackLogManager');
 const {
   getMedications,
@@ -516,18 +516,6 @@ ${videoLink}`,
 // 薬剤師個人ホームページ（プロフィール・記事・仕事の依頼）
 // ────────────────────────────────────
 
-app.get('/profile', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/profile.html'));
-});
-
-app.get('/api/profile', async (req, res) => {
-  try {
-    res.json({ text: await getProfile() });
-  } catch (err) {
-    console.error('プロフィール取得エラー:', err);
-    res.status(500).json({ error: 'プロフィールを取得できませんでした。' });
-  }
-});
 
 app.get('/articles', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/articles.html'));

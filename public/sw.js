@@ -1,10 +1,9 @@
-const CACHE_NAME = 'yakuzaishi-static-v1';
+const CACHE_NAME = 'yakuzaishi-static-v2';
 
 const CACHEABLE_PATHS = [
   '/css/style.css',
   '/js/site.js',
   '/js/patient-chat.js',
-  '/js/profile.js',
   '/js/articles.js',
   '/js/article.js',
   '/js/contact.js',

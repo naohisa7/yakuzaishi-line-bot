@@ -5,23 +5,12 @@ const redis = require('./redisClient');
  * 薬剤師個人ホームページのコンテンツ（プロフィール・記事）を管理するモジュール（Redisに永続化）
  */
 
-const PROFILE_KEY = 'site_profile';
 const ARTICLE_IDS_KEY = 'site_article_ids';
 const PHARMACIST_NAME_KEY = 'pharmacist_name';
-const DEFAULT_PROFILE = 'プロフィールは準備中です。LINEから「プロフィール編集:本文」で設定できます。';
 const DEFAULT_PHARMACIST_NAME = '担当薬剤師';
 
 function articleKey(id) {
   return `site_article:${id}`;
-}
-
-async function getProfile() {
-  const text = await redis.get(PROFILE_KEY);
-  return text || DEFAULT_PROFILE;
-}
-
-async function setProfile(text) {
-  await redis.set(PROFILE_KEY, text);
 }
 
 async function getPharmacistName() {
@@ -77,8 +66,6 @@ async function deleteArticle(id) {
 }
 
 module.exports = {
-  getProfile,
-  setProfile,
   getPharmacistName,
   setPharmacistName,
   addArticle,

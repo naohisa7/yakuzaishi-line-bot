@@ -12,7 +12,6 @@ const { startReply, getReplyTarget, clearReply } = require('./replyManager');
 const { setPendingBroadcast, getPendingBroadcast, clearPendingBroadcast } = require('./pendingBroadcastManager');
 const { getPasscode, setPasscode } = require('./passcodeManager');
 const {
-  setProfile,
   setPharmacistName,
   addArticle,
   getArticles,
@@ -624,16 +623,6 @@ async function handleEvent(event, lineClient) {
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
         text: `記事管理ページ（ホームページの /admin ）用のパスワードを更新しました。\n新しいパスワード：${adminPasscodeChangeMatch[1]}`,
-      });
-    }
-
-    // 「プロフィール編集:本文」でホームページのプロフィールを更新
-    const profileEditMatch = trimmedAdminMessage.match(/^プロフィール編集[:：]([\s\S]+)$/);
-    if (profileEditMatch) {
-      await setProfile(profileEditMatch[1].trim());
-      return lineClient.replyMessage(event.replyToken, {
-        type: 'text',
-        text: 'プロフィールを更新しました。ホームページの「プロフィール」ページに反映されています。',
       });
     }
 
