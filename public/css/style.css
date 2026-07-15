@@ -2477,7 +2477,36 @@ textarea {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 .card-modal-title { margin: 0 0 6px; }
-.card-modal-preview { display: flex; justify-content: center; margin: 14px 0 16px; }
+.card-seg {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0;
+}
+.card-seg-btn {
+  flex: 1;
+  padding: 8px 6px;
+  border: 1.5px solid var(--brand);
+  background: #fff;
+  color: var(--brand-dark);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.card-seg-btn.active {
+  background: var(--brand);
+  color: #fff;
+}
+.card-modal-preview {
+  display: flex;
+  justify-content: center;
+  margin: 12px 0 14px;
+  padding: 12px;
+  background: #F4F6F5;
+  border-radius: 10px;
+  max-height: 60vh;
+  overflow: auto;
+}
 .card-modal-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .print-controls {
