@@ -49,6 +49,7 @@ LINE公式アカウント＋ホームページで、患者さんの薬相談にA
     - **順序が重要**：登録セッション中の入力は、テキストも画像も、薬剤師の「返信転送」より前・患者のAIチャットより前に処理すること（後ろに置くと入力が横取りされる）
     - 写真の取得（`fetchImageBase64`）は登録チェックで一度だけ行い、AIチャットに流す場合は`event.__imageBase64`で使い回す（LINEから二重にダウンロードしない）
     - LINEのクイックリプライは**最大13個・ラベル20文字**まで。候補は10件に絞り、長い薬品名は省略して収めている
+- **プライバシーポリシー・利用規約（`/privacy`・`/terms`）**：全ページのフッターからリンク。本文は`GET /api/legal`が`privacyPolicy.js`の`PRIVACY_POLICY_TEXT`（同意フローと共用＝二重管理しない）と`termsOfService.js`の`TERMS_OF_SERVICE_TEXT`を返し、`public/js/legal.js`が`data-legal`属性を見て描画する。どちらも`PHARMACIST_PHONE`環境変数を本文に埋め込む
 - **SEO**：meta description・OGP・Pharmacy構造化データ（index.htmlのみ）・`robots.txt`・`sitemap.xml`・スタッフページへの`noindex`
 - **アップロード検証**：`/api/chat`の画像アップロードにmulter `fileFilter`（画像MIMEタイプのみ許可）＋`sharp`再エンコードで無害化
 - **`/host`**：薬剤師用の入口ページ（3つのツールへのリンクカード）

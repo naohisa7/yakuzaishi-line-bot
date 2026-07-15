@@ -169,6 +169,35 @@ label {
   margin-bottom: 16px;
 }
 
+/* プライバシーポリシー・利用規約の本文 */
+.legal-text {
+  font-size: 15px;
+  line-height: 1.9;
+  color: var(--text);
+}
+
+.legal-text .legal-heading {
+  margin: 24px 0 8px;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--brand-dark);
+  padding-left: 12px;
+  border-left: 4px solid var(--brand);
+}
+
+.legal-text .legal-heading:first-child {
+  margin-top: 0;
+}
+
+.legal-text .legal-line {
+  margin: 0;
+}
+
+.legal-text .legal-space {
+  margin: 0;
+  height: 8px;
+}
+
 .consent-buttons {
   display: flex;
   gap: 10px;

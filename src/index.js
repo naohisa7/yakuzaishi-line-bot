@@ -22,6 +22,7 @@ const { getAuthorizedUsers, revoke: revokeAuthorization } = require('./authManag
 const BROADCAST_TEMPLATES = require('./broadcastTemplates');
 const { enhanceImageToBase64 } = require('./imageEnhancer');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
+const { TERMS_OF_SERVICE_TEXT } = require('./termsOfService');
 const { registerSocket, unregisterSocket, popPendingMessages, sendToSession } = require('./wsManager');
 const { getPharmacistName, getArticles, getArticle, addArticle, updateArticle, deleteArticle } = require('./contentManager');
 const { recordFeedback } = require('./feedbackLogManager');
@@ -513,9 +514,21 @@ ${videoLink}`,
 });
 
 // ────────────────────────────────────
-// 薬剤師個人ホームページ（プロフィール・記事・仕事の依頼）
+// 記事・お問い合わせ・規約などの公開ページ
 // ────────────────────────────────────
 
+// プライバシーポリシー・利用規約（本文は同意フローと同じ定数を単一の情報源として使う）
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/privacy.html'));
+});
+
+app.get('/terms', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/terms.html'));
+});
+
+app.get('/api/legal', (req, res) => {
+  res.json({ privacy: PRIVACY_POLICY_TEXT, terms: TERMS_OF_SERVICE_TEXT });
+});
 
 app.get('/articles', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/articles.html'));

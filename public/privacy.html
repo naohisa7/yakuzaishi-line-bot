@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>お薬の記事 | かかりつけ薬剤師</title>
-<meta name="description" content="お薬に関する役立つ情報をお届けする記事の一覧です。">
-<link rel="canonical" href="https://yakuzaishi-line-bot.onrender.com/articles">
+<title>プライバシーポリシー | かかりつけ薬剤師</title>
+<meta name="description" content="かかりつけ薬剤師サービスのプライバシーポリシー（個人情報の取り扱い）です。">
+<link rel="canonical" href="https://yakuzaishi-line-bot.onrender.com/privacy">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="かかりつけ薬剤師">
-<meta property="og:title" content="お薬の記事 | かかりつけ薬剤師">
-<meta property="og:description" content="お薬に関する役立つ情報をお届けする記事の一覧です。">
-<meta property="og:url" content="https://yakuzaishi-line-bot.onrender.com/articles">
+<meta property="og:title" content="プライバシーポリシー | かかりつけ薬剤師">
+<meta property="og:description" content="かかりつけ薬剤師サービスのプライバシーポリシー（個人情報の取り扱い）です。">
+<meta property="og:url" content="https://yakuzaishi-line-bot.onrender.com/privacy">
 <meta property="og:image" content="https://yakuzaishi-line-bot.onrender.com/icons/icon-512.png">
 <meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="/css/style.css">
@@ -22,7 +22,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="かかりつけ薬剤師">
 </head>
-<body>
+<body data-legal="privacy">
 
 <nav class="top-nav">
   <a href="/" class="nav-logo"><span class="nav-logo-icon">💊</span> かかりつけ薬剤師</a>
@@ -35,12 +35,11 @@
 </nav>
 
 <div class="page-header">
-  <span class="hero-deco deco-1" aria-hidden="true">📝</span>
-  <span class="hero-deco deco-2" aria-hidden="true">💊</span>
-  <span class="hero-deco deco-6" aria-hidden="true">🌿</span>
-  <span class="hero-deco deco-7" aria-hidden="true">✚</span>
-  <h1 class="reveal">📝 お薬の記事</h1>
-  <p class="reveal delay-1">知っておきたいお薬の豆知識</p>
+  <span class="hero-deco deco-1" aria-hidden="true">🔒</span>
+  <span class="hero-deco deco-4" aria-hidden="true">📄</span>
+  <span class="hero-deco deco-5" aria-hidden="true">✚</span>
+  <h1 class="reveal">🔒 プライバシーポリシー</h1>
+  <p class="reveal delay-1">個人情報の取り扱いについて</p>
 </div>
 <div class="page-wave">
   <svg viewBox="0 0 500 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -48,10 +47,10 @@
   </svg>
 </div>
 
-<div class="usecase-section">
-  <span class="section-blob blob-c" aria-hidden="true"></span>
-  <span class="section-blob blob-d" aria-hidden="true"></span>
-  <div class="container" id="article-list" style="position:relative; z-index:1;">読み込み中...</div>
+<div class="container">
+  <div class="card reveal-on-scroll reveal-up">
+    <div class="legal-text" id="legal-text">読み込み中...</div>
+  </div>
 </div>
 
 <footer class="site-footer">
@@ -70,6 +69,6 @@
 </footer>
 
 <script src="/js/site.js"></script>
-<script src="/js/articles.js"></script>
+<script src="/js/legal.js"></script>
 </body>
 </html>
