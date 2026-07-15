@@ -32,6 +32,7 @@ const {
   updateArticle,
   deleteArticle,
   seedDefaultArticles,
+  removeLegacyArticles,
 } = require('./contentManager');
 const { recordFeedback } = require('./feedbackLogManager');
 const {
@@ -1385,8 +1386,10 @@ server.listen(PORT, () => {
 🖥️  Web:     http://localhost:${PORT}/
   `);
 
-  // 初期記事（お薬の記事）を一度だけ投入する。Redis接続後に走らせたいので少し待つ
-  setTimeout(() => {
-    seedDefaultArticles().catch(() => {});
+  // 初期記事の投入と、以前からあった不要な記事の削除を一度だけ行う。
+  // Redis接続後に走らせたいので少し待つ
+  setTimeout(async () => {
+    await seedDefaultArticles().catch(() => {});
+    await removeLegacyArticles().catch(() => {});
   }, 3000);
 });

@@ -9,7 +9,12 @@ const { DEFAULT_ARTICLES } = require('./defaultArticles');
 const ARTICLE_IDS_KEY = 'site_article_ids';
 const PHARMACIST_NAME_KEY = 'pharmacist_name';
 const ARTICLES_SEEDED_KEY = 'articles_seeded_v1';
+const LEGACY_ARTICLES_REMOVED_KEY = 'legacy_articles_removed_v1';
 const DEFAULT_PHARMACIST_NAME = '担当薬剤師';
+
+// 初期記事の投入より前から存在していた記事のうち、削除する記事のID
+// （ユーザー依頼により1件削除。起動時に一度だけ消す）
+const LEGACY_ARTICLE_IDS_TO_REMOVE = ['f23a0399-c160-4d87-9cd0-a48865d6c4bc'];
 
 function articleKey(id) {
   return `site_article:${id}`;
@@ -98,6 +103,29 @@ async function seedDefaultArticles() {
   }
 }
 
+/**
+ * 初期記事より前から存在していた不要な記事を、起動時に一度だけ削除する
+ * （フラグで冪等。失敗時は次回起動で再試行）
+ */
+async function removeLegacyArticles() {
+  try {
+    if (await redis.get(LEGACY_ARTICLES_REMOVED_KEY)) return;
+
+    let removed = 0;
+    for (const id of LEGACY_ARTICLE_IDS_TO_REMOVE) {
+      if (await getArticle(id)) {
+        await deleteArticle(id);
+        removed++;
+      }
+    }
+
+    await redis.set(LEGACY_ARTICLES_REMOVED_KEY, '1');
+    if (removed > 0) console.log(`🗑 以前からあった不要な記事を削除しました（${removed}件）`);
+  } catch (err) {
+    console.error('旧記事の削除に失敗しました（次回起動時に再試行します）:', err.message);
+  }
+}
+
 module.exports = {
   getPharmacistName,
   setPharmacistName,
@@ -108,4 +136,5 @@ module.exports = {
   findArticleByIdPrefix,
   deleteArticle,
   seedDefaultArticles,
+  removeLegacyArticles,
 };
