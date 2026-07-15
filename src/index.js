@@ -102,6 +102,40 @@ function buildLineLinkUrl(pharmacistId) {
   return `https://line.me/R/oaMessage/${encodeURIComponent(LINE_OA_ID)}/?${encodeURIComponent(text)}`;
 }
 
+// 名刺（患者さんに渡すカード）用の情報
+const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://yakuzaishi-line-bot.onrender.com';
+const LINE_FRIEND_URL = `https://line.me/R/ti/p/${LINE_OA_ID}`;
+
+// 患者さんがスキャンすると /patient が開き、認証コードが入力済みになるURL
+function buildPatientCodeUrl(code) {
+  return `${PUBLIC_BASE_URL}/patient?code=${encodeURIComponent(code)}`;
+}
+
+async function makeQrSvg(text) {
+  try {
+    return await QRCode.toString(text, { type: 'svg', margin: 1, width: 168 });
+  } catch {
+    return null;
+  }
+}
+
+// 名刺データ（本人・owner共通）。認証コードが未設定なら QR は付けない
+async function buildCardData(pharmacist) {
+  const code = pharmacist.patientAuthCode || null;
+  const data = {
+    id: pharmacist.id,
+    name: pharmacist.name,
+    patientAuthCode: code,
+    lineFriendUrl: LINE_FRIEND_URL,
+    patientSiteUrl: `${PUBLIC_BASE_URL}/patient`,
+  };
+  if (code) {
+    data.patientCodeUrl = buildPatientCodeUrl(code);
+    data.patientCardQr = await makeQrSvg(data.patientCodeUrl);
+  }
+  return data;
+}
+
 // ────────────────────────────────────
 // LINE SDK 設定
 // ────────────────────────────────────
@@ -708,12 +742,10 @@ app.get('/api/admin/pharmacists', requireAdminSession, requireOwnerSession, asyn
         const summary = toPharmacistSummary(p);
         if (!summary.lineLinked) {
           summary.lineLinkUrl = buildLineLinkUrl(p.id);
-          try {
-            summary.lineLinkQr = await QRCode.toString(summary.lineLinkUrl, { type: 'svg', margin: 1, width: 168 });
-          } catch {
-            summary.lineLinkQr = null;
-          }
+          summary.lineLinkQr = await makeQrSvg(summary.lineLinkUrl);
         }
+        // 名刺（各薬剤師の認証コードで作る）データ。ownerは全員分を閲覧・印刷できる
+        summary.card = await buildCardData(p);
         return summary;
       })
     );
@@ -771,6 +803,42 @@ app.delete('/api/admin/pharmacists/:id', requireAdminSession, requireOwnerSessio
   } catch (err) {
     console.error('薬剤師の削除エラー:', err);
     res.status(500).json({ error: '薬剤師を削除できませんでした。' });
+  }
+});
+
+// ── 薬剤師本人のセルフサービス（自分の認証コードの変更・名刺）──
+// ログイン中の薬剤師本人だけが対象。共通パスワードでのログイン（pharmacistId無し）は対象外。
+
+app.get('/api/pharmacist/me', requireAdminSession, async (req, res) => {
+  try {
+    if (!req.pharmacistId) {
+      // 名前を選ばずログインした場合（移行期の共通パスワード）は本人特定できない
+      return res.json({ available: false });
+    }
+    const pharmacist = await getPharmacist(req.pharmacistId);
+    if (!pharmacist) return res.json({ available: false });
+    res.json({ available: true, card: await buildCardData(pharmacist) });
+  } catch (err) {
+    console.error('本人情報の取得エラー:', err);
+    res.status(500).json({ error: '情報を取得できませんでした。' });
+  }
+});
+
+// 本人が自分の患者向け認証コードを変更する
+app.put('/api/pharmacist/me/authcode', requireAdminSession, async (req, res) => {
+  try {
+    if (!req.pharmacistId) {
+      return res.status(400).json({ ok: false, message: 'お名前を選んでログインし直してください。' });
+    }
+    const authCode = (req.body.authCode || '').trim();
+    if (!authCode) return res.json({ ok: false, message: '認証コードを入力してください。' });
+    const result = await setAuthCode(req.pharmacistId, authCode);
+    if (!result.ok) return res.json({ ok: false, message: result.message });
+    const pharmacist = await getPharmacist(req.pharmacistId);
+    res.json({ ok: true, card: await buildCardData(pharmacist) });
+  } catch (err) {
+    console.error('本人の認証コード変更エラー:', err);
+    res.status(500).json({ error: '認証コードを変更できませんでした。' });
   }
 });
 
@@ -858,6 +926,10 @@ app.get('/host-guide', (req, res) => {
 
 app.get('/pharmacists', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/pharmacists.html'));
+});
+
+app.get('/mycard', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/mycard.html'));
 });
 
 app.get('/host', (req, res) => {

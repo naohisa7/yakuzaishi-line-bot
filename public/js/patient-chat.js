@@ -462,6 +462,17 @@
     }
   });
 
+  // 名刺のQRコードから来た場合、URLの ?code= を認証コード欄に入れておく（入力の手間を省く）
+  (function prefillCode() {
+    try {
+      const code = new URLSearchParams(location.search).get('code');
+      if (code) {
+        const el = document.getElementById('passcode-input');
+        if (el) el.value = code;
+      }
+    } catch (_) {}
+  })();
+
   document.getElementById('verify-button').addEventListener('click', async () => {
     const name = document.getElementById('name-input').value.trim();
     const passcode = document.getElementById('passcode-input').value.trim();

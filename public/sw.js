@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yakuzaishi-static-v7';
+const CACHE_NAME = 'yakuzaishi-static-v8';
 
 const CACHEABLE_PATHS = [
   '/css/style.css',
@@ -10,6 +10,8 @@ const CACHEABLE_PATHS = [
   '/js/legal.js',
   '/js/pharmacist-login.js',
   '/js/pharmacists.js',
+  '/js/namecard.js',
+  '/js/mycard.js',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/icon-maskable-512.png',
