@@ -2456,6 +2456,30 @@ textarea {
 }
 .namecard-url { color: #000; font-weight: 600; word-break: break-all; }
 
+/* 名刺プレビュー用モーダル（/pharmacists） */
+.card-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+  overflow: auto;
+  z-index: 2000;
+}
+.card-modal-inner {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+.card-modal-title { margin: 0 0 6px; }
+.card-modal-preview { display: flex; justify-content: center; margin: 14px 0 16px; }
+.card-modal-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+
 .print-controls {
   display: flex;
   flex-wrap: wrap;

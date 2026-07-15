@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yakuzaishi-static-v13';
+const CACHE_NAME = 'yakuzaishi-static-v14';
 
 const CACHEABLE_PATHS = [
   '/css/style.css',

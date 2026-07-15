@@ -169,6 +169,55 @@
     return box;
   }
 
+  // 名刺を画面に表示してから印刷するモーダル（内容を確認してから印刷できる）
+  function openCardModal(cardData) {
+    const old = document.getElementById('card-modal');
+    if (old) old.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'card-modal';
+    overlay.className = 'card-modal';
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.remove();
+    });
+
+    const inner = document.createElement('div');
+    inner.className = 'card-modal-inner';
+
+    const title = document.createElement('h3');
+    title.className = 'card-modal-title';
+    title.textContent = '患者さんに渡す名刺';
+    inner.appendChild(title);
+
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = '内容を確認して、下のボタンから印刷してください。';
+    inner.appendChild(hint);
+
+    const preview = document.createElement('div');
+    preview.className = 'card-modal-preview';
+    preview.appendChild(window.buildNameCard(cardData));
+    inner.appendChild(preview);
+
+    const btns = document.createElement('div');
+    btns.className = 'card-modal-buttons';
+    const mk = (label, cls, fn) => {
+      const b = document.createElement('button');
+      b.className = 'btn ' + cls;
+      b.textContent = label;
+      b.addEventListener('click', fn);
+      return b;
+    };
+    btns.appendChild(mk('🖨 名刺サイズで1枚', '', () => window.printNameCard(cardData, 1)));
+    btns.appendChild(mk('🖨 A4に10枚', 'btn-secondary', () => window.printNameCard(cardData, 10)));
+    btns.appendChild(mk('🖨 A4チラシ', 'btn-secondary', () => window.printNameFlyer(cardData)));
+    btns.appendChild(mk('閉じる', 'btn-secondary', () => overlay.remove()));
+    inner.appendChild(btns);
+
+    overlay.appendChild(inner);
+    document.body.appendChild(overlay);
+  }
+
   function renderCard(p) {
     const card = document.createElement('div');
     card.className = 'card pharma-card';
@@ -270,25 +319,13 @@
     });
     actions.appendChild(saveBtn);
 
-    // 名刺を印刷（認証コードが設定済みのときのみ）。単票／A4に10枚
+    // 名刺（認証コードが設定済みのときのみ）。押すと画面に名刺を表示してから印刷できる
     if (p.card && p.card.patientAuthCode) {
       const cardBtn = document.createElement('button');
       cardBtn.className = 'btn btn-secondary';
-      cardBtn.textContent = '🪪 名刺1枚';
-      cardBtn.addEventListener('click', () => window.printNameCard(p.card, 1));
+      cardBtn.textContent = '🪪 名刺を見る・印刷';
+      cardBtn.addEventListener('click', () => openCardModal(p.card));
       actions.appendChild(cardBtn);
-
-      const sheetBtn = document.createElement('button');
-      sheetBtn.className = 'btn btn-secondary';
-      sheetBtn.textContent = '🪪 A4に10枚';
-      sheetBtn.addEventListener('click', () => window.printNameCard(p.card, 10));
-      actions.appendChild(sheetBtn);
-
-      const flyerBtn = document.createElement('button');
-      flyerBtn.className = 'btn btn-secondary';
-      flyerBtn.textContent = '📄 A4チラシ';
-      flyerBtn.addEventListener('click', () => window.printNameFlyer(p.card));
-      actions.appendChild(flyerBtn);
     }
 
     // 削除（管理者は不可）
