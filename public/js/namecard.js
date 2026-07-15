@@ -148,8 +148,11 @@
     const cleanup = () => {
       document.body.classList.remove('printing-card');
       window.removeEventListener('afterprint', cleanup);
+      area.removeEventListener('click', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
+    // 印刷ダイアログが出ない端末では、前面に出た内容をタップすると閉じられる（保険）
+    area.addEventListener('click', cleanup);
     window.print();
   }
 

@@ -2566,32 +2566,53 @@ textarea {
 
 /* 印刷用：名刺だけを出す（用紙はA4） */
 #namecard-print-area { display: none; }
+
+/* 印刷時は、印刷対象を画面前面に「実体」として出す。
+   端末ごとに不安定な @media print の表示切替に頼らず、実際に見えている物を印刷するので、
+   名刺1枚／A4に複数枚／A4チラシがそれぞれ正しく印刷される（スマホでも崩れない）。
+   画面ではタップで閉じられる（印刷ダイアログが出ない端末の保険）。 */
+body.printing-card #namecard-print-area {
+  display: block;
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  z-index: 99999;
+  overflow: auto;
+  padding: 8mm;
+}
+body.printing-card .namecard {
+  box-shadow: none;
+  border: 1px solid #000;
+  width: 88mm;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+body.printing-card .nameflyer {
+  width: 190mm;
+  max-width: 100%;
+  border: 1px solid #000;
+}
+/* 白黒ベース（色に頼らない） */
+body.printing-card .namecard,
+body.printing-card .namecard *,
+body.printing-card .nameflyer,
+body.printing-card .nameflyer * {
+  color: #000 !important;
+  background: #fff !important;
+}
+
 @media print {
   @page { size: A4; margin: 8mm; }
   body.printing-card > *:not(#namecard-print-area) { display: none !important; }
   body.printing-card #namecard-print-area {
-    display: block !important;
+    position: static;
     padding: 0;
-  }
-  body.printing-card .namecard {
-    box-shadow: none;
-    border: 1px solid #000;
-    width: 88mm;
-    page-break-inside: avoid;
-    break-inside: avoid;
+    overflow: visible;
   }
   body.printing-card .nameflyer {
     width: 100%;
     min-height: 273mm;
     border: none;
     border-radius: 0;
-  }
-  /* 白黒印刷の保険：色に頼らず黒＋枠線。背景色は印刷されない前提でも読める */
-  body.printing-card .namecard,
-  body.printing-card .namecard *,
-  body.printing-card .nameflyer,
-  body.printing-card .nameflyer * {
-    color: #000 !important;
-    background: #fff !important;
   }
 }
