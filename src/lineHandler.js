@@ -671,7 +671,7 @@ async function handleEvent(event, lineClient) {
       const p = await addPharmacist(name);
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
-        text: `薬剤師「${name}」を追加しました。\nID：${p.id}\n\n続けて設定してください：\n・「薬剤師コード:${p.id} 認証コード」（患者さん用）\n・「薬剤師パスワード:${p.id} パスワード」（ログイン用）\n・本人のLINEから「薬剤師LINE連携:${p.id}」（通知の受け取り用）`,
+        text: `薬剤師「${name}」を追加しました。\nID：${p.id}\n\n続けて設定してください：\n・「薬剤師コード:${p.id} 認証コード」（患者さん用）\n・「薬剤師パスワード:${p.id} パスワード」（ログイン用）\n・通知の受け取り：ホームページ「薬剤師の管理」に、ご本人がタップ/読み取るだけの連携リンク・QRが出ます（または本人のLINEから「薬剤師LINE連携:${p.id}」）`,
       });
     }
 

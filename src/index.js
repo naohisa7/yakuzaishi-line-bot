@@ -20,6 +20,7 @@ const { getHistory: getLineHistory, addMessage: addLineMessage } = require('./co
 const { getAuthorizedUsers, revoke: revokeAuthorization } = require('./authManager');
 const BROADCAST_TEMPLATES = require('./broadcastTemplates');
 const { enhanceImageToBase64 } = require('./imageEnhancer');
+const QRCode = require('qrcode');
 const { PRIVACY_POLICY_TEXT } = require('./privacyPolicy');
 const { TERMS_OF_SERVICE_TEXT } = require('./termsOfService');
 const { registerSocket, unregisterSocket, popPendingMessages, sendToSession } = require('./wsManager');
@@ -92,6 +93,14 @@ REQUIRED_ENV.forEach((key) => {
 
 const PHARMACIST_LINE_USER_ID = process.env.PHARMACIST_LINE_USER_ID;
 const PHARMACIST_PHONE = process.env.PHARMACIST_PHONE || '';
+// LINE公式アカウントのベーシックID（薬剤師の連携用ディープリンクに使う。本番でも既定値でOK）
+const LINE_OA_ID = process.env.LINE_OA_BASIC_ID || '@118ubplz';
+
+// 薬剤師本人がタップ/読み取ると、連携メッセージが入力済みの状態で公式LINEが開くリンク
+function buildLineLinkUrl(pharmacistId) {
+  const text = `薬剤師LINE連携:${pharmacistId}`;
+  return `https://line.me/R/oaMessage/${encodeURIComponent(LINE_OA_ID)}/?${encodeURIComponent(text)}`;
+}
 
 // ────────────────────────────────────
 // LINE SDK 設定
@@ -690,11 +699,25 @@ function toPharmacistSummary(p) {
   };
 }
 
-// 薬剤師名簿の一覧（管理者のみ・状態付き）
+// 薬剤師名簿の一覧（管理者のみ・状態付き）。未連携の薬剤師にはLINE連携用リンク＋QRを添える
 app.get('/api/admin/pharmacists', requireAdminSession, requireOwnerSession, async (req, res) => {
   try {
     const list = await listPharmacists();
-    res.json({ pharmacists: list.map(toPharmacistSummary) });
+    const pharmacists = await Promise.all(
+      list.map(async (p) => {
+        const summary = toPharmacistSummary(p);
+        if (!summary.lineLinked) {
+          summary.lineLinkUrl = buildLineLinkUrl(p.id);
+          try {
+            summary.lineLinkQr = await QRCode.toString(summary.lineLinkUrl, { type: 'svg', margin: 1, width: 168 });
+          } catch {
+            summary.lineLinkQr = null;
+          }
+        }
+        return summary;
+      })
+    );
+    res.json({ pharmacists });
   } catch (err) {
     console.error('薬剤師名簿の取得エラー:', err);
     res.status(500).json({ error: '薬剤師名簿を取得できませんでした。' });

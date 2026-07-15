@@ -2367,3 +2367,34 @@ textarea {
   gap: 10px;
   margin-top: 14px;
 }
+.linking-box {
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid var(--warm-line);
+  border-radius: 10px;
+  background: var(--warm-bg);
+}
+.linking-title {
+  font-weight: 700;
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+}
+.linking-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.linking-qr {
+  margin-top: 12px;
+  width: 168px;
+  max-width: 100%;
+  background: #fff;
+  padding: 8px;
+  border-radius: 8px;
+}
+.linking-qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}

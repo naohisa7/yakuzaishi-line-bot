@@ -110,6 +110,65 @@
     return wrap;
   }
 
+  // 未連携の薬剤師向け：本人がタップ/読み取るだけで連携できるリンク＋QR
+  function buildLinkingBox(p) {
+    const box = document.createElement('div');
+    box.className = 'linking-box';
+
+    const title = document.createElement('p');
+    title.className = 'linking-title';
+    title.textContent = '📲 通知を受け取るためのLINE連携（未完了）';
+    box.appendChild(title);
+
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = 'この薬剤師さんご本人のスマホで下のリンクを開く（またはQRコードを読み取る）と、公式LINEが連携メッセージ入力済みの状態で開きます。そのまま送信すれば連携完了です。';
+    box.appendChild(hint);
+
+    if (p.lineLinkUrl) {
+      const actions = document.createElement('div');
+      actions.className = 'linking-actions';
+
+      const open = document.createElement('a');
+      open.className = 'btn btn-secondary';
+      open.href = p.lineLinkUrl;
+      open.target = '_blank';
+      open.rel = 'noopener';
+      open.textContent = '📱 連携用リンクを開く';
+      actions.appendChild(open);
+
+      const copy = document.createElement('button');
+      copy.className = 'btn btn-secondary';
+      copy.textContent = 'リンクをコピー';
+      copy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(p.lineLinkUrl);
+          copy.textContent = 'コピーしました';
+          setTimeout(() => (copy.textContent = 'リンクをコピー'), 1500);
+        } catch {
+          copy.textContent = 'コピーできませんでした';
+        }
+      });
+      actions.appendChild(copy);
+      box.appendChild(actions);
+
+      if (p.lineLinkQr) {
+        const qr = document.createElement('div');
+        qr.className = 'linking-qr';
+        qr.innerHTML = p.lineLinkQr; // サーバー生成のSVG（信頼できる）
+        box.appendChild(qr);
+      }
+    } else {
+      // フォールバック：手入力の案内
+      const manual = document.createElement('p');
+      manual.className = 'hint';
+      manual.textContent = 'ご本人のLINEから「薬剤師LINE連携:' + p.id + '」と送ってもらってください。';
+      box.appendChild(manual);
+    }
+
+    return box;
+  }
+
   function renderCard(p) {
     const card = document.createElement('div');
     card.className = 'card pharma-card';
@@ -140,10 +199,7 @@
     idLine.textContent = 'ID：' + p.id;
     card.appendChild(idLine);
     if (!p.lineLinked) {
-      const hint = document.createElement('p');
-      hint.className = 'hint';
-      hint.textContent = '通知を受け取るには、この薬剤師さんご本人のLINEから「薬剤師LINE連携:' + p.id + '」と送ってもらってください。';
-      card.appendChild(hint);
+      card.appendChild(buildLinkingBox(p));
     }
 
     const err = document.createElement('div');
