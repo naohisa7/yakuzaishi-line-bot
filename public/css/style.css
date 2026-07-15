@@ -2414,46 +2414,47 @@ textarea {
   display: flex;
   align-items: center;
   gap: 6px;
-  border-bottom: 1px solid var(--warm-line);
+  border-bottom: 1px solid #000;
   padding-bottom: 8px;
   margin-bottom: 10px;
 }
 .namecard-logo { font-size: 1.1rem; }
-.namecard-service { font-weight: 700; font-size: 0.85rem; color: var(--brand-dark); }
+.namecard-service { font-weight: 700; font-size: 0.85rem; color: #000; }
 .namecard-body { display: flex; gap: 12px; }
 .namecard-left { flex: 1; min-width: 0; }
-.namecard-role { font-size: 0.72rem; color: var(--muted); }
+.namecard-role { font-size: 0.72rem; color: #333; }
 .namecard-name { font-size: 1.15rem; font-weight: 700; margin: 2px 0 10px; word-break: break-word; }
 .namecard-codebox {
-  background: #E4F4F0;
+  background: #fff;
+  border: 1.5px solid #000;
   border-radius: 8px;
   padding: 8px 10px;
   display: inline-block;
 }
-.namecard-codelabel { font-size: 0.68rem; color: var(--brand-dark); }
+.namecard-codelabel { font-size: 0.68rem; color: #000; }
 .namecard-code {
   font-size: 1.3rem;
   font-weight: 800;
   letter-spacing: 0.05em;
-  color: var(--brand-dark);
+  color: #000;
   word-break: break-all;
 }
 .namecard-right { display: flex; flex-direction: column; gap: 8px; }
 .namecard-qr { text-align: center; }
 .namecard-qr img, .namecard-qr-svg { width: 74px; height: 74px; display: block; }
 .namecard-qr-svg svg { width: 74px; height: 74px; }
-.namecard-qr-cap { font-size: 0.6rem; color: var(--muted); margin-top: 2px; }
+.namecard-qr-cap { font-size: 0.6rem; color: #000; margin-top: 2px; }
 .namecard-steps {
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px dashed var(--warm-line);
+  border-top: 1px dashed #999;
   display: flex;
   flex-direction: column;
   gap: 2px;
   font-size: 0.68rem;
-  color: var(--muted);
+  color: #333;
 }
-.namecard-url { color: var(--brand-dark); font-weight: 600; word-break: break-all; }
+.namecard-url { color: #000; font-weight: 600; word-break: break-all; }
 
 .print-controls {
   display: flex;
@@ -2493,49 +2494,51 @@ textarea {
   overflow: hidden;
 }
 .nameflyer-head {
-  background: var(--brand);
-  color: #fff;
+  background: #fff;
+  color: #000;
   text-align: center;
-  padding: 9mm 8mm;
+  padding: 8mm;
+  border-bottom: 2.5px solid #000;
 }
 .nameflyer-logo { font-size: 18pt; vertical-align: middle; }
 .nameflyer-brand { font-size: 15pt; font-weight: 700; margin-left: 4px; vertical-align: middle; }
 .nameflyer-intro { text-align: center; padding: 7mm 10mm 3mm; }
-.nameflyer-role { color: var(--muted); font-size: 11pt; }
-.nameflyer-name { font-size: 24pt; font-weight: 800; margin: 2mm 0; word-break: break-word; }
-.nameflyer-lead { font-size: 11.5pt; color: #374151; margin: 2mm 0 0; }
+.nameflyer-role { color: #333; font-size: 11pt; }
+.nameflyer-name { font-size: 24pt; font-weight: 800; margin: 2mm 0; word-break: break-word; color: #000; }
+.nameflyer-lead { font-size: 11.5pt; color: #222; margin: 2mm 0 0; }
 .nameflyer-qrs { display: flex; justify-content: center; gap: 18mm; padding: 4mm 0; }
 .nameflyer-qrbox { text-align: center; }
 .nameflyer-qrbox img, .nameflyer-qrsvg { width: 42mm; height: 42mm; display: block; }
 .nameflyer-qrsvg svg { width: 42mm; height: 42mm; }
-.nameflyer-qrcap { font-size: 11pt; font-weight: 700; margin-top: 2mm; color: var(--brand-dark); }
+.nameflyer-qrcap { font-size: 11pt; font-weight: 700; margin-top: 2mm; color: #000; }
 .nameflyer-codebox {
   margin: 4mm 12mm;
-  background: #E4F4F0;
+  background: #fff;
+  border: 2.5px solid #000;
   border-radius: 8px;
   text-align: center;
   padding: 5mm;
 }
-.nameflyer-codelabel { font-size: 11pt; color: var(--brand-dark); }
+.nameflyer-codelabel { font-size: 11pt; color: #000; }
 .nameflyer-code {
   font-size: 28pt;
   font-weight: 800;
   letter-spacing: 0.06em;
-  color: var(--brand-dark);
+  color: #000;
   word-break: break-all;
 }
 .nameflyer-steps { display: flex; gap: 8mm; padding: 2mm 12mm 6mm; }
 .nameflyer-step {
   flex: 1;
-  background: #f7faf9;
-  border: 1px solid var(--warm-line);
+  background: #fff;
+  border: 1.5px solid #000;
   border-radius: 8px;
   padding: 4mm 4mm 4mm 3mm;
 }
-.nameflyer-step-title { font-weight: 700; font-size: 12pt; margin-bottom: 2mm; }
-.nameflyer-step ol { margin: 0; padding-left: 6mm; font-size: 11pt; line-height: 1.7; }
-.nameflyer-foot { text-align: center; color: var(--muted); font-size: 10pt; padding: 0 0 7mm; }
-.nameflyer-foot span { color: var(--brand-dark); font-weight: 600; }
+.nameflyer-step-title { font-weight: 700; font-size: 12pt; margin-bottom: 2mm; color: #000; }
+.nameflyer-step ol { margin: 0; padding-left: 6mm; font-size: 11pt; line-height: 1.7; color: #000; }
+.nameflyer-foot { text-align: center; color: #333; font-size: 10pt; padding: 0 0 7mm; }
+.nameflyer-foot span { color: #000; font-weight: 600; }
 
 /* 印刷用：名刺だけを出す（用紙はA4） */
 #namecard-print-area { display: none; }
@@ -2548,7 +2551,7 @@ textarea {
   }
   body.printing-card .namecard {
     box-shadow: none;
-    border: 1px solid #999;
+    border: 1px solid #000;
     width: 88mm;
     page-break-inside: avoid;
     break-inside: avoid;
@@ -2558,5 +2561,13 @@ textarea {
     min-height: 273mm;
     border: none;
     border-radius: 0;
+  }
+  /* 白黒印刷の保険：色に頼らず黒＋枠線。背景色は印刷されない前提でも読める */
+  body.printing-card .namecard,
+  body.printing-card .namecard *,
+  body.printing-card .nameflyer,
+  body.printing-card .nameflyer * {
+    color: #000 !important;
+    background: #fff !important;
   }
 }
