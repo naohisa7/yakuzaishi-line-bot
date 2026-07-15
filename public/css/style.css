@@ -2303,3 +2303,62 @@ textarea {
     transition: none !important;
   }
 }
+
+/* ── 薬剤師の管理ページ ── */
+.hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.pharma-card {
+  margin-top: 16px;
+}
+.pharma-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+.pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pill-on {
+  background: #E4F4F0;
+  color: var(--brand-dark);
+}
+.pill-off {
+  background: #F0EEEA;
+  color: var(--muted);
+}
+.pill-owner {
+  background: #EEEAFB;
+  color: var(--purple-dark);
+  font-size: 0.75rem;
+  vertical-align: middle;
+}
+.pharma-id {
+  word-break: break-all;
+  margin: 4px 0;
+}
+.pharma-field {
+  margin-top: 10px;
+}
+.pharma-field label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.pharma-field input {
+  width: 100%;
+}
+.pharma-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}

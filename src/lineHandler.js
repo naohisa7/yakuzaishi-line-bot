@@ -723,12 +723,11 @@ async function handleEvent(event, lineClient) {
     // 「薬剤師削除:ID」で薬剤師を名簿から削除
     const pharmacistDeleteMatch = trimmedAdminMessage.match(/^薬剤師削除[:：]\s*(\S+)$/);
     if (isOwner && pharmacistDeleteMatch) {
-      const target = await getPharmacist(pharmacistDeleteMatch[1]);
-      if (!target) {
-        return lineClient.replyMessage(event.replyToken, { type: 'text', text: '該当の薬剤師IDが見つかりませんでした。' });
-      }
-      await removePharmacist(target.id);
-      return lineClient.replyMessage(event.replyToken, { type: 'text', text: `薬剤師「${target.name}」を名簿から削除しました。` });
+      const result = await removePharmacist(pharmacistDeleteMatch[1]);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: result.ok ? `薬剤師「${result.name}」を名簿から削除しました。` : result.message,
+      });
     }
 
     // 「記事追加:タイトル\n本文」でお薬についての記事を投稿

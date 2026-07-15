@@ -61,7 +61,13 @@ const {
   getPharmacist,
   getPharmacistByAuthCode,
   verifyPassword: verifyPharmacistPassword,
+  addPharmacist,
+  updatePharmacist,
+  setAuthCode,
+  setPassword: setPharmacistPassword,
+  removePharmacist,
   seedPharmacists,
+  ensureOwnerFlag,
 } = require('./pharmacistManager');
 const { assignPharmacist } = require('./patientAssignmentManager');
 
@@ -656,6 +662,88 @@ async function requireAdminSession(req, res, next) {
   next();
 }
 
+// 名簿の管理（追加・削除・パスワード等）は管理者（owner＝薬剤師#1）のみ。
+// 共通パスワードでのログイン（pharmacistId無し＝旧管理者）も管理者として扱う。
+async function requireOwnerSession(req, res, next) {
+  if (!req.pharmacistId) return next();
+  const pharmacist = await getPharmacist(req.pharmacistId);
+  if (pharmacist && pharmacist.owner) return next();
+  return res.status(403).json({ error: 'この操作は管理者のみ可能です。' });
+}
+
+// パスワードのハッシュ等の内部情報は返さず、状態だけを返す
+function toPharmacistSummary(p) {
+  return {
+    id: p.id,
+    name: p.name,
+    owner: !!p.owner,
+    patientAuthCode: p.patientAuthCode || null,
+    hasPassword: !!p.passwordHash,
+    lineLinked: !!p.lineUserId,
+  };
+}
+
+// 薬剤師名簿の一覧（管理者のみ・状態付き）
+app.get('/api/admin/pharmacists', requireAdminSession, requireOwnerSession, async (req, res) => {
+  try {
+    const list = await listPharmacists();
+    res.json({ pharmacists: list.map(toPharmacistSummary) });
+  } catch (err) {
+    console.error('薬剤師名簿の取得エラー:', err);
+    res.status(500).json({ error: '薬剤師名簿を取得できませんでした。' });
+  }
+});
+
+// 薬剤師を追加
+app.post('/api/admin/pharmacists', requireAdminSession, requireOwnerSession, async (req, res) => {
+  try {
+    const name = (req.body.name || '').trim();
+    if (!name) return res.json({ ok: false, message: 'お名前を入力してください。' });
+    const pharmacist = await addPharmacist(name);
+    res.json({ ok: true, pharmacist: toPharmacistSummary(pharmacist) });
+  } catch (err) {
+    console.error('薬剤師の追加エラー:', err);
+    res.status(500).json({ error: '薬剤師を追加できませんでした。' });
+  }
+});
+
+// 薬剤師の情報を更新（名前・認証コード・パスワード。いずれも任意）
+app.put('/api/admin/pharmacists/:id', requireAdminSession, requireOwnerSession, async (req, res) => {
+  try {
+    const pharmacist = await getPharmacist(req.params.id);
+    if (!pharmacist) return res.status(404).json({ error: '該当の薬剤師が見つかりません。' });
+
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : null;
+    const authCode = typeof req.body.authCode === 'string' ? req.body.authCode.trim() : null;
+    const password = typeof req.body.password === 'string' ? req.body.password.trim() : null;
+
+    if (name) await updatePharmacist(req.params.id, { name });
+    if (authCode) {
+      const result = await setAuthCode(req.params.id, authCode);
+      if (!result.ok) return res.json({ ok: false, message: result.message });
+    }
+    if (password) await setPharmacistPassword(req.params.id, password);
+
+    const updated = await getPharmacist(req.params.id);
+    res.json({ ok: true, pharmacist: toPharmacistSummary(updated) });
+  } catch (err) {
+    console.error('薬剤師の更新エラー:', err);
+    res.status(500).json({ error: '薬剤師の情報を更新できませんでした。' });
+  }
+});
+
+// 薬剤師を削除（管理者本人は削除不可）
+app.delete('/api/admin/pharmacists/:id', requireAdminSession, requireOwnerSession, async (req, res) => {
+  try {
+    const result = await removePharmacist(req.params.id);
+    if (!result.ok) return res.json({ ok: false, message: result.message });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('薬剤師の削除エラー:', err);
+    res.status(500).json({ error: '薬剤師を削除できませんでした。' });
+  }
+});
+
 app.get('/api/admin/articles', requireAdminSession, async (req, res) => {
   try {
     const articles = await getArticles();
@@ -736,6 +824,10 @@ app.get('/console', (req, res) => {
 
 app.get('/host-guide', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/host-guide.html'));
+});
+
+app.get('/pharmacists', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/pharmacists.html'));
 });
 
 app.get('/host', (req, res) => {
@@ -1435,5 +1527,6 @@ server.listen(PORT, () => {
     await seedDefaultArticles().catch(() => {});
     await removeLegacyArticles().catch(() => {});
     await seedPharmacists().catch(() => {});
+    await ensureOwnerFlag().catch(() => {});
   }, 3000);
 });

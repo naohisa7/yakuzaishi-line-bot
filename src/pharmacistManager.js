@@ -73,6 +73,7 @@ async function addPharmacist(name) {
     patientAuthCode: null,
     passwordHash: null,
     lineUserId: null,
+    owner: false,
     active: true,
     createdAt: new Date().toISOString(),
   };
@@ -142,10 +143,12 @@ async function verifyPassword(id, plain) {
 
 async function removePharmacist(id) {
   const pharmacist = await getPharmacist(id);
-  if (!pharmacist) return;
+  if (!pharmacist) return { ok: false, message: '該当の薬剤師が見つかりません。' };
+  if (pharmacist.owner) return { ok: false, message: '管理者（薬剤師#1）は削除できません。' };
   if (pharmacist.patientAuthCode) await redis.del(authCodeKey(pharmacist.patientAuthCode));
   await redis.del(pharmacistKey(id));
   await redis.lrem(PHARMACIST_IDS_KEY, 0, id);
+  return { ok: true, name: pharmacist.name };
 }
 
 /**
@@ -170,8 +173,9 @@ async function seedPharmacists() {
       const name = (await getPharmacistName()) || '担当薬剤師';
       const pharmacist = await addPharmacist(name);
 
+      // 薬剤師#1（＝元々の管理者）に owner フラグを立てる。名簿管理・削除の権限判定に使う。
       const lineUserId = process.env.PHARMACIST_LINE_USER_ID || null;
-      if (lineUserId) await updatePharmacist(pharmacist.id, { lineUserId });
+      await updatePharmacist(pharmacist.id, { owner: true, lineUserId });
 
       const code = await getPasscode();
       if (code) await setAuthCode(pharmacist.id, code);
@@ -188,6 +192,22 @@ async function seedPharmacists() {
   }
 }
 
+/**
+ * 名簿の先頭の薬剤師（＝薬剤師#1）に owner フラグが立っていなければ立てる（毎起動・冪等）。
+ * フェーズ1で owner フラグ導入前に作成済みの薬剤師#1にも、後から付与するための移行処理。
+ */
+async function ensureOwnerFlag() {
+  try {
+    const list = await listPharmacists();
+    if (list.length === 0) return;
+    if (list.some((p) => p.owner)) return;
+    await updatePharmacist(list[0].id, { owner: true });
+    console.log('👑 薬剤師#1にownerフラグを付与しました');
+  } catch (err) {
+    console.error('ownerフラグの付与に失敗しました（次回起動時に再試行します）:', err.message);
+  }
+}
+
 module.exports = {
   listPharmacists,
   getPharmacist,
@@ -200,4 +220,5 @@ module.exports = {
   verifyPassword,
   removePharmacist,
   seedPharmacists,
+  ensureOwnerFlag,
 };

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>薬剤師用メニュー | かかりつけ薬剤師</title>
+<title>薬剤師の管理 | かかりつけ薬剤師</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="stylesheet" href="/css/style.css">
 <link rel="manifest" href="/manifest.json">
@@ -13,26 +13,6 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="かかりつけ薬剤師">
-<style>
-  .host-menu-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 16px;
-  }
-  a.host-menu-card {
-    display: block;
-    text-decoration: none;
-    color: inherit;
-  }
-  a.host-menu-card h3 {
-    margin-bottom: 6px;
-  }
-  a.host-menu-card p {
-    margin: 0;
-    color: var(--muted);
-    font-size: 14px;
-  }
-</style>
 </head>
 <body>
 
@@ -47,10 +27,10 @@
 </nav>
 
 <div class="page-header">
-  <span class="hero-deco deco-1" aria-hidden="true">🗂️</span>
+  <span class="hero-deco deco-1" aria-hidden="true">👥</span>
   <span class="hero-deco deco-4" aria-hidden="true">💊</span>
-  <h1 class="reveal">🗂️ 薬剤師用メニュー</h1>
-  <p class="reveal delay-1">このページだけ覚えておけば大丈夫です</p>
+  <h1 class="reveal">👥 薬剤師の管理</h1>
+  <p class="reveal delay-1">かかりつけ薬剤師の追加・削除・設定（管理者のみ）</p>
 </div>
 <div class="page-wave">
   <svg viewBox="0 0 500 40" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -75,29 +55,25 @@
     </div>
   </section>
 
-  <section id="menu-content" style="display:none">
-    <div class="host-menu-grid">
-      <a href="/console" class="card tilt-card host-menu-card reveal-on-scroll reveal-up">
-        <div class="card-icon-circle c-teal">💬</div>
-        <h3>患者チャットコンソール</h3>
-        <p>患者さんとのチャット・一斉送信・対応記録・服薬リマインダー</p>
-      </a>
-      <a href="/admin" class="card tilt-card host-menu-card reveal-on-scroll reveal-up">
-        <div class="card-icon-circle c-amber">📝</div>
-        <h3>記事管理</h3>
-        <p>お薬の記事の追加・編集・削除</p>
-      </a>
-      <a href="/host-guide" class="card tilt-card host-menu-card reveal-on-scroll reveal-up">
-        <div class="card-icon-circle c-sky">📖</div>
-        <h3>薬剤師様用マニュアル</h3>
-        <p>LINEコマンド一覧・各機能の使い方</p>
-      </a>
-      <a href="/pharmacists" class="card tilt-card host-menu-card reveal-on-scroll reveal-up">
-        <div class="card-icon-circle c-purple">👥</div>
-        <h3>薬剤師の管理</h3>
-        <p>かかりつけ薬剤師の追加・削除・設定（管理者のみ）</p>
-      </a>
+  <section id="denied-section" style="display:none">
+    <div class="card">
+      <div class="card-icon-circle lg c-purple">🔒</div>
+      <h3>管理者専用ページです</h3>
+      <p>薬剤師の追加・削除は管理者のみが行えます。<a href="/host">薬剤師用メニューに戻る</a></p>
     </div>
+  </section>
+
+  <section id="dashboard-section" style="display:none">
+    <div class="card">
+      <h3>薬剤師を追加</h3>
+      <div class="error" id="add-error" style="display:none"></div>
+      <label for="new-name-input">お名前</label>
+      <input type="text" id="new-name-input" placeholder="例：田中 一郎">
+      <button class="btn" id="add-button">追加する</button>
+      <p class="hint" style="margin-top:10px;">追加したあと、下の一覧で「認証コード」と「ログインパスワード」を設定してください。通知を受け取るには、その薬剤師さんご本人のLINEから連携が必要です（IDは下に表示されます）。</p>
+    </div>
+
+    <div id="pharmacist-list">読み込み中...</div>
   </section>
 
 </div>
@@ -109,6 +85,7 @@
       <a href="/articles">お薬の記事</a>
       <a href="/contact">お問い合わせ</a>
       <a href="/patient">患者様はこちら</a>
+      <a href="/host">薬剤師用メニュー</a>
       <a href="/guide">ご利用ガイド</a>
       <a href="/privacy">プライバシーポリシー</a>
       <a href="/terms">利用規約</a>
@@ -119,6 +96,6 @@
 
 <script src="/js/site.js"></script>
 <script src="/js/pharmacist-login.js"></script>
-<script src="/js/host.js"></script>
+<script src="/js/pharmacists.js"></script>
 </body>
 </html>
