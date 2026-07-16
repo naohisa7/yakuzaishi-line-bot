@@ -1582,6 +1582,24 @@ app.get('/api/admin/drugs/search', requireAdminSession, (req, res) => {
   });
 });
 
+// キープアライブ用の軽量エンドポイント（外部cronから叩く）
+//
+// Render無料プランは15分アクセスが無いと停止し、次のアクセスでの復帰に約1分かかる。
+// その間Render側のローディング画面が出るため、患者さんが「知らないサイトが出た＝
+// ウイルス？」と不審に思ってしまう。起きている時間帯だけ定期的にここを叩いて起こしておく。
+//
+// **服薬リマインダーのcron（下の /api/cron/medication-reminders）を流用しないこと。**
+// あちらは「設定時刻を過ぎていて今日未送信なら送る」判定（currentHHMM < reminder.time で
+// スキップ）のため、cronの時間帯を絞ると、絞った終了時刻より後ろに設定されたリマインダーが
+// 永久に発火しなくなる（翌朝も currentHHMM < reminder.time で再びスキップされるため）。
+// リマインダーのcronは24時間動かしたまま、キープアライブはこちらで別に行う。
+//
+// Redisにも外部APIにも触らないので、叩かれ続けてもコストはほぼゼロ。
+// 認証は不要（200を返すだけで何も漏らさない）。
+app.get('/healthz', (req, res) => {
+  res.type('text/plain').send('ok');
+});
+
 app.get('/api/cron/medication-reminders', async (req, res) => {
   if (!process.env.CRON_SECRET || req.query.token !== process.env.CRON_SECRET) {
     return res.status(403).json({ error: 'forbidden' });
