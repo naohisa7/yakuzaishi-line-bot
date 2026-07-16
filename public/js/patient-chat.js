@@ -9,6 +9,9 @@
   let sessionId = null;
   let pendingResolutionTimer = null;
   let isSending = false;
+  // 認証時に受け取っておく担当薬剤師の電話番号。
+  // サーバーに繋がらなくなった後でも「電話する」を出せるようにするため（tel:は電話回線）。
+  let pharmacistPhone = null;
   const RESOLUTION_PROMPT_DELAY_MS = 8000;
 
   function showSection(section) {
@@ -244,7 +247,11 @@
     div.className = 'bubble assistant call-bubble';
 
     const p = document.createElement('p');
-    p.textContent = 'お急ぎの場合は、担当薬剤師に直接お電話、または無料の音声・ビデオ通話（アプリのインストール不要）でご相談いただけます。';
+    // 通信障害時は通話ルームを作れず電話しか出せないので、出せるものに合わせて案内する
+    p.textContent =
+      voiceLink || videoLink
+        ? 'お急ぎの場合は、担当薬剤師に直接お電話、または無料の音声・ビデオ通話（アプリのインストール不要）でご相談いただけます。'
+        : 'お急ぎの場合は、担当薬剤師に直接お電話ください。';
     div.appendChild(p);
 
     if (phone) {
@@ -409,6 +416,7 @@
     }
 
     sessionId = data.sessionId;
+    pharmacistPhone = data.pharmacistPhone || null;
 
     if (!data.consented) {
       policyText.textContent = data.privacyPolicy;
@@ -692,6 +700,10 @@
 
       if (!res.ok || data.error) {
         addBubble('assistant', data.error || '現在システムの調子が良くありません。しばらくしてから再度お試しください。');
+        // AIが答えられない時こそ患者さんを行き止まりにしない。サーバーが連絡先を返せない
+        // 場合も、認証時に受け取っておいた番号にフォールバックする
+        const phone = data.phone || pharmacistPhone;
+        if (phone) addCallBubble(phone, data.videoLink, data.voiceLink);
         return;
       }
 
@@ -710,6 +722,8 @@
     } catch (err) {
       typingBubble.remove();
       addBubble('assistant', '通信エラーが発生しました。しばらくしてから再度お試しください。');
+      // サーバーに繋がらないので通話ルームは作れないが、電話は電話回線なので繋がる
+      if (pharmacistPhone) addCallBubble(pharmacistPhone);
     } finally {
       isSending = false;
       sendButton.disabled = false;

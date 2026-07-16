@@ -33,6 +33,11 @@ LINE公式アカウント＋ホームページで、患者さんの薬相談にA
 
 ## 実装済み機能（新しい順）
 
+- **AIが応答できない時の逃げ道＝人に繋ぐ（LINE・HP両方）**：APIクレジット切れ・Anthropic側の障害でもチャットを行き止まりにしない。**このサーバーにAIの代わりに薬の相談へ答える手段は無い**（知識はAnthropic側にあり、同梱しているのは薬品名マスタ＝名前と規格だけ。Render無料プランにローカルLLMは載らない）ため、**人に繋ぐのが唯一の正解**。
+  - LINEは元々`catch`で通話ボタンを返していた。**HP側が行き止まりだったのを修正**：`/api/chat`の500応答に`phone`/`videoLink`/`voiceLink`を載せ、`patient-chat.js`の両エラー経路（サーバーエラー・通信断）で`addCallBubble`を出す
+  - **`/api/session-status`が認証時に`pharmacistPhone`を渡す**のが要点。サーバーに全く繋がらない通信断でも画面から電話できる（`tel:`は電話回線なのでネット障害でも繋がる）。通話ルームはサーバーでしか作れないため、その場合は電話のみ＝`addCallBubble`は渡された導線に合わせて文言を変える
+  - エラー処理自体が例外を投げて500すら返せなくなることがないよう、連絡先の解決は個別に`try/catch`して`PHARMACIST_PHONE`にフォールバックする
+- **API課金はMaxプランと別・前払いクレジット**：Claude APIはConsoleの**前払いクレジット**方式で、**尽きるとAPIが止まる**（＝患者さんのチャットが上記の逃げ道に落ちる）。claude.aiのPro/Maxサブスクには**含まれない**（[根拠](https://support.claude.com/en/articles/9876003-i-have-a-paid-claude-subscription-pro-max-team-or-enterprise-plans-why-do-i-have-to-pay-separately-to-use-the-claude-api-and-console)）。上限＝残高と自動リロード設定（`platform.claude.com/settings/billing`）、またはWorkspaceのLimitsタブのspend limit。**Spend Limits APIはEnterprise専用でConsole組織では使えない**（調査時に一度間違えた）。クレジットは購入から1年で失効・返金不可
 - **新薬対応＝PMDA限定Web検索＋モデル更新（`claudeHandler.js`）**：「比較的新しい薬（新薬）について答えられない」への対処。モデルの知識にはカットオフがあるため、**自前で添付文書を持つのではなく、質問時にAnthropicのWeb検索サーバーツールで公式情報を読ませる**方式。LINE・HPとも`askClaude`を通るので1か所で効く。
   - **なぜ自前DBにしないか**：PMDAは[検索ページ](https://www.pmda.go.jp/PmdaSearch/iyakuSearch/)で添付文書・IFを公開しているが、**一括ダウンロードはメディナビ「マイ医薬品集作成サービス」のオプション**で公開APIは無い。JAPIC（全文XML/CSV）やメディエイドの医薬品マスタAPIは**有料のデータ契約**。加えてRender無料プランに19,000件の全文を置く余地が無い
   - **`MEDICAL_SOURCE_DOMAINS`は絶対に開放しないこと**：`allowed_domains`を公的機関（`pmda.go.jp`＝添付文書・IF・審査報告書、`mhlw.go.jp`）＋製薬会社の公式サイトに限定している。無制限にすると個人ブログ・まとめサイト・健康食品の宣伝が根拠に混ざり、誤った薬情報を伝える事故に直結する。**サブドメインは自動で含まれる**（`pmda.go.jp`が添付文書PDFの実体がある`info.pmda.go.jp`を含む）。スキームは付けない。ドメイン部分にワイルドカードは使えない。**リストが長すぎると`request_too_large`**になるので増やす時は実測して必要なものだけに

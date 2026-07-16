@@ -247,6 +247,10 @@ app.get('/api/session-status', async (req, res) => {
     consented: session.consented,
     sessionId,
     privacyPolicy: PRIVACY_POLICY_TEXT,
+    // 担当薬剤師の電話番号を最初に渡しておく。サーバーに繋がらなくなった後でも
+    // 画面から電話できるようにするため（tel:は電話回線なのでネット障害でも繋がる）。
+    // 認証済みセッションにのみ返す。番号は名刺・プライバシーポリシーで既に開示済み。
+    pharmacistPhone: (await resolveResponsiblePhone(`web:${sessionId}`)) || undefined,
   });
 });
 
@@ -435,7 +439,29 @@ ${videoLink}`,
     }
   } catch (err) {
     console.error('Webチャットエラー:', err);
-    res.status(500).json({ error: '現在システムの調子が良くありません。しばらくしてから再度お試しください。' });
+
+    // AIが応答できない時（APIクレジット切れ・Anthropic側の障害など）でも、患者さんを
+    // 行き止まりにせず担当薬剤師へ繋ぐ。**このサーバーにAIの代わりに薬の相談へ答える
+    // 手段は無い**（知識はAnthropic側にあり、同梱しているのは薬品名のマスタだけ）ため、
+    // 人に繋ぐことがここでの唯一の正解になる。LINE側は元々そうなっている。
+    // エラー処理自体が例外を投げて500すら返せなくなることがないよう、個別に保護する。
+    let phone = '';
+    let room = null;
+    try {
+      phone = await resolveResponsiblePhone(`web:${sessionId}`);
+      room = buildRoomLinks();
+    } catch (fallbackErr) {
+      console.error('エラー時の連絡先の解決に失敗:', fallbackErr);
+      phone = PHARMACIST_PHONE;
+    }
+
+    res.status(500).json({
+      error:
+        '申し訳ありません。ただいまAIがご相談にお答えできない状態です。お急ぎの場合は、担当の薬剤師に直接ご連絡ください。',
+      phone: phone || undefined,
+      videoLink: room ? room.videoLink : undefined,
+      voiceLink: room ? room.voiceLink : undefined,
+    });
   }
 });
 
