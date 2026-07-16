@@ -24,6 +24,7 @@ const {
 } = require('./pharmacistManager');
 const { assignPharmacist } = require('./patientAssignmentManager');
 const { notifyPharmacistsForPatient, getAssignedPharmacist } = require('./pharmacistNotifier');
+const { getHandover, startHandover, markAcked, endHandover } = require('./handoverManager');
 const {
   setPharmacistName,
   addArticle,
@@ -547,11 +548,13 @@ async function handleEvent(event, lineClient) {
         return lineClient.replyMessage(event.replyToken, messages);
       }
 
+      // 「終了」で返信モードを抜け、その患者さんのAI応答も再開する（対応終了）
       if (trimmedAdminMessage === '終了' || trimmedAdminMessage === 'キャンセル') {
         clearReply(userId);
+        await endHandover(replyTarget.startsWith('web:') ? replyTarget : `line:${replyTarget}`);
         return lineClient.replyMessage(event.replyToken, {
           type: 'text',
-          text: `🔴 ${replyPatientName}さんへの返信モードを終了しました。`,
+          text: `🔴 ${replyPatientName}さんへの対応を終了しました。\nこの患者さんへのAI自動応答を再開します。`,
         });
       }
 
@@ -575,9 +578,18 @@ async function handleEvent(event, lineClient) {
       } else {
         await lineClient.pushMessage(replyTarget, { type: 'text', text: replyText });
       }
+
+      // 薬剤師が返信した＝対応を引き取ったので、この患者さんへのAI自動応答を止める
+      // （返信のたびにTTLを延長。「終了」または一定時間で自動的に再開する）
+      const me = await getPharmacistByLineUserId(userId);
+      await startHandover(replyTarget.startsWith('web:') ? replyTarget : `line:${replyTarget}`, {
+        pharmacistId: me ? me.id : null,
+        pharmacistName: me ? me.name : null,
+      });
+
       return lineClient.replyMessage(event.replyToken, {
         type: 'text',
-        text: `✅ ${replyPatientName}さんに送信しました。\n🟢 返信モード継続中（終了するときは「終了」と送信）`,
+        text: `✅ ${replyPatientName}さんに送信しました。\n🤖 この患者さんへのAI自動応答は停止中です（あなたが対応中）。\n🟢 返信モード継続中（終わるときは「終了」と送信）`,
       });
     }
 
@@ -992,6 +1004,36 @@ ${videoLink}`,
         text: '貴重なご意見をありがとうございました。今後の改善に活かします🙏',
       });
     }
+  }
+
+  // 3.5 薬剤師が対応中（AI一時停止）の場合、AIは答えず担当薬剤師へ取り次ぐ。
+  //     エスカレーション後に薬剤師が引き取った会話に、AIが割り込まないようにするため。
+  const handoverState = await getHandover(`line:${userId}`);
+  if (handoverState) {
+    const forwardText = isImage ? '（写真が送信されました）' : userMessage;
+    addMessage(userId, 'user', forwardText); // コンソールで見えるよう履歴には残す
+    const patientName = await getPatientName(lineClient, userId);
+    await notifyPharmacistsForPatient(lineClient, `line:${userId}`, [
+      {
+        type: 'text',
+        text: `💬【対応中の患者さんから】
+━━━━━━━━━━━━━━
+👤 ${patientName}
+━━━━━━━━━━━━━━
+${forwardText}`,
+      },
+      buildReplyButtonMessage(userId),
+    ]);
+
+    // 案内は最初の1回だけ（毎回同じ文言を返さない）
+    if (!handoverState.acked) {
+      await markAcked(`line:${userId}`);
+      return lineClient.replyMessage(event.replyToken, {
+        type: 'text',
+        text: '担当薬剤師にお伝えしました。少々お待ちください。',
+      });
+    }
+    return;
   }
 
   try {

@@ -84,6 +84,12 @@
             <h3 id="console-patient-name"></h3>
             <button type="button" id="console-revoke-button" class="resolution-btn resolution-no">🔒 認証解除</button>
           </div>
+
+          <div id="handover-banner" class="handover-banner" style="display:none;">
+            <span>🧑‍⚕️ <strong>あなた（薬剤師）が対応中</strong>です。この患者さんへの<strong>AIの自動応答は停止</strong>しています。</span>
+            <button type="button" id="handover-resume-button" class="resolution-btn resolution-yes">対応を終了してAI応答を再開</button>
+          </div>
+
           <div class="card" style="padding:0; overflow:hidden;">
             <div class="chat-log" id="console-log"></div>
             <div class="chat-input-row">

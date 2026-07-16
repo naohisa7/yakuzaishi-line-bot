@@ -72,6 +72,7 @@ const {
 } = require('./pharmacistManager');
 const { assignPharmacist, getAssignedPharmacistId, unassign } = require('./patientAssignmentManager');
 const { notifyPharmacistsForPatient, getAssignedPharmacist } = require('./pharmacistNotifier');
+const { getHandover, startHandover, markAcked, endHandover, isHandoverActive } = require('./handoverManager');
 
 // ────────────────────────────────────
 // 環境変数チェック
@@ -359,6 +360,33 @@ app.post('/api/chat', requireWebSession, uploadImage, async (req, res) => {
     await addMessage(sessionId, 'user', userContent);
     await touchSession(sessionId);
     const history = await getHistory(sessionId);
+
+    // 薬剤師が対応中（AI一時停止）なら、AIは答えずに担当薬剤師へ取り次ぐ。
+    // エスカレーション後に薬剤師が引き取った会話へAIが割り込まないようにするため。
+    const handoverState = await getHandover(`web:${sessionId}`);
+    if (handoverState) {
+      const patientName = req.webSession.patientName || '患者さん';
+      const forwardText = message || '（写真が送信されました）';
+      await notifyPharmacistsForPatient(lineClient, `web:${sessionId}`, [
+        {
+          type: 'text',
+          text: `💬【対応中の患者さんから・ホームページ】
+━━━━━━━━━━━━━━
+👤 ${patientName}
+━━━━━━━━━━━━━━
+${forwardText}`,
+        },
+        buildWebReplyButtonMessage(sessionId),
+      ]);
+
+      let ack = null;
+      if (!handoverState.acked) {
+        await markAcked(`web:${sessionId}`);
+        ack = '担当薬剤師にお伝えしました。少々お待ちください。';
+        await addMessage(sessionId, 'assistant', ack);
+      }
+      return res.json({ reply: ack, needsEscalation: false, handover: true });
+    }
 
     // お薬手帳に記録済みの薬があれば文脈として渡す
     const knownMedications = await getMedications(`web:${sessionId}`);
@@ -1031,6 +1059,8 @@ app.get('/api/admin/patients', requireAdminSession, async (req, res) => {
           ...flags,
           assignedPharmacistId: assignedPharmacistId || null,
           assignedPharmacistName: assignedPharmacistId ? nameById.get(assignedPharmacistId) || null : null,
+          // 薬剤師が対応中（AI一時停止中）かどうか
+          handoverActive: await isHandoverActive(patientKey),
         };
       })
     );
@@ -1112,10 +1142,33 @@ app.post('/api/admin/patients/:id/messages', requireAdminSession, async (req, re
       await lineClient.pushMessage(target, { type: 'text', text: replyText });
       addLineMessage(target, 'assistant', replyText);
     }
-    res.json({ ok: true, message: { role: 'assistant', text: replyText } });
+
+    // 薬剤師が返信した＝対応を引き取ったので、この患者さんへのAI自動応答を止める
+    // （返信のたびにTTLを延長。「AI応答を再開」または一定時間で自動的に再開する）
+    const patientKey = target.startsWith('web:') ? target : `line:${target}`;
+    const me = req.pharmacistId ? await getPharmacist(req.pharmacistId) : null;
+    await startHandover(patientKey, {
+      pharmacistId: me ? me.id : null,
+      pharmacistName: me ? me.name : null,
+    });
+
+    res.json({ ok: true, message: { role: 'assistant', text: replyText }, handover: true });
   } catch (err) {
     console.error('チャットコンソール送信エラー:', err);
     res.status(500).json({ error: '送信できませんでした。' });
+  }
+});
+
+// 薬剤師の対応を終了して、この患者さんへのAI自動応答を再開する
+app.delete('/api/admin/patients/:id/handover', requireAdminSession, async (req, res) => {
+  try {
+    const target = req.params.id;
+    const patientKey = target.startsWith('web:') ? target : `line:${target}`;
+    await endHandover(patientKey);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('対応終了エラー:', err);
+    res.status(500).json({ error: 'AI応答を再開できませんでした。' });
   }
 });
 

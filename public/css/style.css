@@ -693,6 +693,28 @@ label {
   color: #6C5CC9;
 }
 
+.reminder-badge.handover-badge {
+  background: #E4F4F0;
+  color: #1F6F65;
+  font-weight: 700;
+}
+
+/* 「薬剤師対応中（AI停止）」バナー */
+.handover-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+  padding: 10px 12px;
+  background: #E4F4F0;
+  border: 1px solid var(--brand);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--brand-dark);
+}
+
 .intervention-month-group {
   border-bottom: 1px solid #EEE;
 }

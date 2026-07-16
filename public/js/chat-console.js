@@ -26,6 +26,8 @@
   const reminderList = document.getElementById('reminder-list');
   const medPharmacistList = document.getElementById('console-med-pharmacist-list');
   const medPatientList = document.getElementById('console-med-patient-list');
+  const handoverBanner = document.getElementById('handover-banner');
+  const handoverResumeButton = document.getElementById('handover-resume-button');
   const patientFilterBar = document.getElementById('patient-filter-bar');
   const filterMineOnly = document.getElementById('filter-mine-only');
   const assignmentSelect = document.getElementById('assignment-select');
@@ -190,6 +192,13 @@
       assignBadge.textContent = patient.assignedPharmacistName ? '担当:' + patient.assignedPharmacistName : '担当:未割当';
       item.appendChild(assignBadge);
 
+      if (patient.handoverActive) {
+        const handoverBadge = document.createElement('span');
+        handoverBadge.className = 'reminder-badge handover-badge';
+        handoverBadge.textContent = '🧑‍⚕️対応中';
+        item.appendChild(handoverBadge);
+      }
+
       if (patient.followUpDue) {
         const followUpBadge = document.createElement('span');
         followUpBadge.className = 'reminder-badge reminder-follow-up';
@@ -235,6 +244,7 @@
     Array.from(patientListEl.children).forEach((item) => item.classList.remove('active'));
     await loadPatients();
     renderAssignment();
+    renderHandover();
 
     resetInterventionForm();
     drugPicker.reset(); // 前の患者さん向けに選びかけていたお薬を持ち越さない
@@ -292,6 +302,28 @@
         }
       } finally {
         assignmentSaveButton.disabled = false;
+      }
+    });
+  }
+
+  // 「薬剤師対応中（AI停止）」バナーの表示。選択中の患者さんの状態を反映する。
+  function renderHandover() {
+    if (!handoverBanner) return;
+    const patient = patientsCache.find((p) => p.id === selectedId);
+    handoverBanner.style.display = patient && patient.handoverActive ? 'flex' : 'none';
+  }
+
+  if (handoverResumeButton) {
+    handoverResumeButton.addEventListener('click', async () => {
+      if (!selectedId) return;
+      if (!confirm('この患者さんへの対応を終了し、AIの自動応答を再開します。よろしいですか？')) return;
+      handoverResumeButton.disabled = true;
+      try {
+        await fetch('/api/admin/patients/' + encodeURIComponent(selectedId) + '/handover', { method: 'DELETE' });
+        await loadPatients();
+        renderHandover();
+      } finally {
+        handoverResumeButton.disabled = false;
       }
     });
   }
@@ -868,6 +900,9 @@
       if (data.ok) {
         consoleInput.value = '';
         await refreshThread();
+        // 返信すると「薬剤師対応中（AI停止）」になるので、その表示を反映する
+        await loadPatients();
+        renderHandover();
       } else {
         window.alert(data.error || '送信できませんでした。');
       }
