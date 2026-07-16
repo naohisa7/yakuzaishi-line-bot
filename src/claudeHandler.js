@@ -2,6 +2,69 @@ const Anthropic = require('@anthropic-ai/sdk');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// 患者さんとのチャット用。新薬の知識と、添付文書のWeb検索のために最新モデルを使う。
+const MODEL = 'claude-sonnet-5';
+
+// 処方箋・お薬手帳の写真からの読み取り用。
+// **安易に上げないこと。** この経路は劣化画像でのベンチマーク（13/20→16/20剤、
+// 薬の捏造2件→0件）を実測しながら詰めた結果であり、モデルを変えると読み取りの挙動が変わる。
+// 誤読は患者さんが違う薬を服用する事故に直結するため、上げる場合は必ず同じベンチマークを
+// 取り直してから切り替える。なおSonnet 5は長辺2576pxの高解像度入力に対応しており
+// （Sonnet 4.6は1568px）、imageEnhancer.jsの縮小上限と併せて見直せば精度が上がる可能性がある。
+const IMAGE_MODEL = 'claude-sonnet-4-6';
+
+/**
+ * Web検索を許可するドメイン
+ *
+ * 【絶対に開放しないこと】
+ * 患者さんへの回答の根拠になるドメインです。ここを無制限にすると、個人ブログ・
+ * まとめサイト・健康食品の宣伝が根拠に混ざり、誤った薬の情報を伝える事故に直結します。
+ * 公的機関（添付文書・インタビューフォームの一次情報）と製薬会社の公式サイトに限定します。
+ *
+ * サブドメインは自動的に含まれる（pmda.go.jp が info.pmda.go.jp／添付文書PDFの実体を含む）。
+ * スキームは付けない。ワイルドカードはドメイン部分には使えない。
+ * リストが長すぎると request_too_large になるため、増やすときは実測して必要なものだけにする。
+ */
+const MEDICAL_SOURCE_DOMAINS = [
+  // 公的機関（一次情報）
+  'pmda.go.jp', // 添付文書・インタビューフォーム・審査報告書
+  'mhlw.go.jp', // 厚生労働省
+  // 製薬会社の公式サイト（新薬は添付文書より製品情報の方が詳しいことがある）
+  'daiichisankyo.co.jp',
+  'takeda.com',
+  'astellas.com',
+  'chugai-pharm.co.jp',
+  'eisai.jp',
+  'msdconnect.jp',
+  'pfizer.co.jp',
+  'otsuka.co.jp',
+  'mt-pharma.co.jp',
+  'ono-pharma.com',
+  'novartis.co.jp',
+  'kyowakirin.co.jp',
+  'shionogi.co.jp',
+  'astrazeneca.co.jp',
+  'sumitomo-pharma.co.jp',
+];
+
+/**
+ * 添付文書を調べるためのWeb検索ツール
+ *
+ * モデルの知識のカットオフ以降に承認された新薬に答えられない問題への対処。
+ * Claudeは必要と判断したときだけ検索する（「飲み忘れたら？」のような安定した知識の
+ * 質問では検索は走らない＝課金もされない）。max_uses で1回の相談あたりの上限を固定する。
+ */
+const WEB_SEARCH_TOOL = {
+  type: 'web_search_20260209',
+  name: 'web_search',
+  max_uses: 3,
+  allowed_domains: MEDICAL_SOURCE_DOMAINS,
+};
+
+// 検索が長引くと stop_reason: 'pause_turn' で中断されるので、その回数の上限。
+// 上限に達したらそこまでの内容で回答する（無限ループ・青天井の課金を防ぐ）。
+const MAX_PAUSE_CONTINUATIONS = 3;
+
 /**
  * 薬剤師アシスタント用システムプロンプト
  */
@@ -11,8 +74,22 @@ const SYSTEM_PROMPT = `あなたは経験豊富な薬剤師のアシスタント
 - 薬の飲み方・タイミング・飲み忘れ時の対応などは具体的に説明する
 - 薬の副作用・注意事項は分かりやすく伝える
 - 一般的な薬同士の相互作用についての情報を提供する
+- 薬がどう効くのか（作用機序）を尋ねられたら、専門用語を噛み砕いて説明する（例：「血管をゆるめて血圧を下げるお薬です」）
 - 不安を感じている患者さんには共感的な言葉を使う
 - 専門用語は使わず、平易な日本語で伝える
+
+【添付文書を調べる（web_searchツール）】
+あなたの知識には学習した時点までという限界があり、**近年承認された新しい薬については知らない、または古い情報しか持っていない可能性があります。**
+検索できるのはPMDA（添付文書・インタビューフォーム）・厚生労働省・製薬会社の公式サイトに限定されています。
+
+- 次の場合は、記憶だけで答えず**必ず web_search で調べてから**答えてください：
+  ・自分が知らない薬名、または近年承認された新しい薬について聞かれたとき
+  ・その薬の効能・用法用量・禁忌・相互作用・副作用・作用機序について、記憶に少しでも確信が持てないとき
+  ・添付文書の記載内容そのものを問われたとき
+- 逆に、**安定した一般知識で答えられることは検索しないでください**（飲み忘れの一般的な対応、グレープフルーツと薬の一般論、保管方法など）。不要な検索は患者さんを待たせるだけです
+- 「検索します」「調べますね」といった実況は書かないでください。調べた結果だけを、患者さんへの回答として自然に書いてください
+- **調べても確かなことが分からなかった場合は、絶対に推測で埋めないでください。**「お調べしましたが確かなことが申し上げられませんでした」と正直に伝えて[ESCALATE]してください。新しい薬ほど情報が少なく、推測が事故に直結します
+- **添付文書は医療従事者向けに書かれた文章です。そのまま転記せず、患者さんに分かる言葉に噛み砕いてください。** また添付文書に書いてあるからといって、患者さんに用法用量の自己判断をさせてはいけません（「絶対に守るルール」は検索した場合も同じです）
 
 【絶対に守るルール】
 - 処方内容の変更・増減は絶対に自己判断しないよう伝える
@@ -108,20 +185,96 @@ function buildMedicationsSection(knownMedications) {
 }
 
 /**
+ * 応答から患者さんへの回答テキストと引用元を取り出す
+ *
+ * Web検索が走ると content には text 以外のブロック（server_tool_use・検索結果・
+ * 内部のコード実行の結果）が混ざるため、**content[0] が回答とは限らない**。
+ * 最後のツール関連ブロックより後ろの text ブロックが最終回答なので、そこを集める。
+ * 検索が走らなかった場合はツールブロックが無く、全ての text が回答になる。
+ */
+function collectAnswer(content) {
+  let lastToolIndex = -1;
+  for (let i = 0; i < content.length; i++) {
+    if (content[i].type !== 'text') lastToolIndex = i;
+  }
+
+  let blocks = content.slice(lastToolIndex + 1).filter((b) => b.type === 'text');
+  // 万一ツールブロックで応答が終わっていた場合に空文字を返さないための保険
+  if (blocks.length === 0) blocks = content.filter((b) => b.type === 'text');
+
+  const text = blocks
+    .map((b) => b.text)
+    .join('')
+    .trim();
+
+  // 引用元URL（重複除去・出現順）
+  const sources = [];
+  for (const block of blocks) {
+    for (const citation of block.citations || []) {
+      if (citation.url && !sources.includes(citation.url)) sources.push(citation.url);
+    }
+  }
+
+  return { text, sources };
+}
+
+/**
+ * 検索の実行状況をログに残す（課金の実測と、検索が機能しているかの確認用）
+ */
+function logSearchUsage(response) {
+  const searches = response.usage?.server_tool_use?.web_search_requests;
+  if (searches) console.log(`[web_search] 検索${searches}回`);
+
+  for (const block of response.content) {
+    if (block.type === 'web_search_tool_result' && block.content?.type === 'web_search_tool_result_error') {
+      // 検索の失敗はHTTP 200で返ってくるので、例外にはならず気づきにくい
+      console.error('[web_search] 検索エラー:', block.content.error_code);
+    }
+  }
+}
+
+/**
  * Claudeに問い合わせて回答を取得
  * @param {Array} history - 会話履歴
  * @param {{name: string, source?: string}[]} knownMedications - この患者さんのお薬（お薬手帳）
  * @returns {{ message: string, needsEscalation: boolean, savedDrugs: string[] }}
  */
 async function askClaude(history, knownMedications = []) {
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 1000,
+  const request = {
+    model: MODEL,
+    max_tokens: 1500,
     system: SYSTEM_PROMPT + buildMedicationsSection(knownMedications),
+    tools: [WEB_SEARCH_TOOL],
     messages: history,
-  });
+  };
 
-  const fullMessage = response.content[0].text;
+  let response = await anthropic.messages.create(request);
+
+  // 検索が長引くとAPIが turn を中断して pause_turn を返す。中断された応答を
+  // そのまま戻すと続きを実行してくれる。tools を外すと未実行の検索が残っている
+  // 場合にエラーになるので、同じ request を使い回して messages だけ足す。
+  let messages = history;
+  for (let i = 0; response.stop_reason === 'pause_turn' && i < MAX_PAUSE_CONTINUATIONS; i++) {
+    messages = [...messages, { role: 'assistant', content: response.content }];
+    response = await anthropic.messages.create({ ...request, messages });
+  }
+
+  logSearchUsage(response);
+
+  const { text: fullMessage, sources } = collectAnswer(response.content);
+
+  // 回答テキストが取り出せないのは異常事態（pause_turnの上限到達など）。
+  // 空メッセージを送るくらいなら、薬剤師に引き継ぐ方が安全側。
+  if (!fullMessage) {
+    console.error('Claudeの応答から回答テキストを取り出せませんでした。stop_reason:', response.stop_reason);
+    return {
+      message:
+        '申し訳ありません、ただいま回答をご用意できませんでした。担当の薬剤師から改めてご連絡します。\n\n※薬剤師の状況により、ご返信までお時間をいただく場合がございます。あらかじめご了承ください。',
+      needsEscalation: true,
+      savedDrugs: [],
+    };
+  }
+
   const needsEscalation = fullMessage.includes('[ESCALATE]');
 
   // [SAVE_DRUG:薬品名] タグを抽出してから、患者向けメッセージから除去
@@ -138,6 +291,13 @@ async function askClaude(history, knownMedications = []) {
     .replace('[ESCALATE]', '')
     .replace(/\[SAVE_DRUG:[^\]]+\]/g, '')
     .trim();
+
+  // 添付文書等を検索して答えた場合は引用元を併記する。
+  // APIの規約上、検索結果を根拠にした回答をそのまま利用者に見せる場合は引用元の提示が必要。
+  // 患者さんが公式の一次情報を自分で確認できる利点もある。LINEの読みやすさを優先して2件まで。
+  if (sources.length > 0) {
+    cleanMessage += `\n\n📄 参考（公式情報）\n${sources.slice(0, 2).join('\n')}`;
+  }
 
   // エスカレーション時は、AIの文言に関わらず必ず「返信が遅れる場合がある」旨を明記する
   // （営業時間内・時間外を問わず、薬剤師の状況により返信に時間がかかることがあるため）
@@ -160,7 +320,7 @@ async function askClaude(history, knownMedications = []) {
  */
 async function extractMedicationsFromImage(imageBase64) {
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: IMAGE_MODEL,
     max_tokens: 1500,
     system: `あなたは薬剤師の業務を補助するアシスタントです。処方箋・お薬手帳・薬のパッケージやシートの画像から、薬品名を読み取ってください。
 
