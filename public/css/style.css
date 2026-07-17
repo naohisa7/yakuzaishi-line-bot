@@ -506,7 +506,8 @@ label {
   padding: 12px;
   background: #fff;
   border-top: 1px solid #E5E7EB;
-  /* 入力欄が伸びてもボタンは下端に揃える（center だと真ん中に浮いて不格好） */
+  /* 入力欄が伸びてもボタンは下端に揃える（既定の stretch だと、220pxまで伸びた
+     入力欄に合わせてボタンまで縦長になってしまう） */
   align-items: flex-end;
 }
 
@@ -531,10 +532,19 @@ label {
   font-family: inherit; /* textareaの既定は monospace。指定しないとチャットだけ書体が変わる */
 }
 
+/* 📷・🎤・送信の高さを揃える。
+   中身が絵文字(📷)と日本語(送信)で行ボックスの高さが変わるため、パディング任せだと
+   高さが49pxと55pxにずれて段差になる（実測）。align-items:stretch でも line-height の
+   明示でも揃わなかったので、**高さを固定して中身をflexで中央寄せする**。
+   48pxはタップ領域の推奨下限(44px)も満たす。 */
 .chat-input-row button,
 .chat-input-row label.file-btn {
   flex-shrink: 0;
-  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0 16px;
   border-radius: 10px;
   border: none;
   background: var(--brand);
@@ -547,6 +557,33 @@ label {
 .chat-input-row label.file-btn.has-file {
   background: var(--brand-dark);
   box-shadow: 0 0 0 3px rgba(47, 158, 143, 0.25);
+}
+
+/* スマホでは入力欄を独立した行にして、ボタンを下に回す。
+   横一列だと入力欄の幅が182pxしか取れず（📷・🎤・送信が場所を食う）、1行あたり約11文字。
+   placeholder「お薬について相談する」すら2行に折り返して切れるうえ、長文も数行しか見えない。
+   独立行なら約350px＝1行20文字前後になり、placeholderも収まり長文も全文が見える。
+
+   ⚠️ このブロックは上の .chat-input-row / .chat-input-row textarea より必ず後ろに置くこと。
+   同じ詳細度なので、前に置くと後続の `flex: 1`（＝flex-basis:0%）に flex-basis:100% が
+   打ち消され、折り返しが起きなくなる（実際にそれで動かず、原因究明に手間取った）。 */
+@media (max-width: 600px) {
+  .chat-input-row {
+    flex-wrap: wrap;
+    /* 折り返せば入力欄は独立行になるので、stretch はボタン行の高さ揃えとして働く。
+       flex-end のままだと📷(49px)と送信(47px)の高さの差がそのまま段差になって崩れて見える */
+    align-items: stretch;
+  }
+
+  .chat-input-row textarea {
+    order: -1; /* ボタンより前＝1行目に置く */
+    flex-basis: 100%;
+  }
+
+  /* 送信ボタンだけ右端へ寄せる（📷・🎤は左にまとめる） */
+  .chat-input-row > button:last-child {
+    margin-left: auto;
+  }
 }
 
 /* 添付した写真のプレビュー（入力欄のすぐ上に出す） */

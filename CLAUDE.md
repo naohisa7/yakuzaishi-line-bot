@@ -114,7 +114,11 @@ Redis: `red-d933s79kh4rs739erea0`。ローカル開発機のIPはallowlist対象
 - 対応記録・リマインダーは全患者を毎回列挙して個別に問い合わせる設計（小規模運用前提、大量患者だと遅くなる可能性）
 - **服薬リマインダーは現在「保留」（2026-07-16〜）**。cron-job.org側のジョブが、Renderのスピンダウン（起動約1分）と30秒タイムアウトの衝突で25回連続失敗し**自動的に無効化されていた**。実患者未登録のため実害なし。ユーザー判断で機能ごと保留中で、**ジョブは無効のまま**。再開する時は、キープアライブが効いていることを確認したうえでジョブを有効化し、cronは24時間動かすこと（上記の`currentHHMM < reminder.time`の件）。外部cronの登録自体がユーザー自身の作業（`CRON_SECRET`をRender環境変数に設定＋cron-job.org等に登録）
 - **ホームページで認証し直す（＝新しいセッションになる）と、お薬手帳の紐づけは切れる**。`web:<sessionId>`が変わるため。再度紐づければ復旧する（薬剤師が`/console`から数クリック）。内容は失われない
-- **チャットの入力欄は`<textarea rows="1">`＋`window.autoGrowTextarea()`（`site.js`・患者用と`/console`で共用）**。単一行の`input`だと長文が横に流れて書いた内容を見返せないため。**罠：`placeholder`は`scrollHeight`に含まれる**ので、折り返す長さのplaceholderだと空欄なのに2行の高さになる（実測で48px→72px）。空文字のときは`height:auto`＝`rows="1"`の自然な高さに任せること。また`box-sizing:border-box`なので`scrollHeight`（枠線を含まない）をそのまま`height`に入れると文字が2px切れる——枠線幅を足す
+- **チャットの入力欄は`<textarea rows="1">`＋`window.autoGrowTextarea()`（`site.js`・患者用と`/console`で共用）**。単一行の`input`だと長文が横に流れて書いた内容を見返せないため。ここで踏んだ罠4つ：
+  - **`placeholder`は`scrollHeight`に含まれる**。折り返す長さのplaceholderだと空欄なのに2行の高さになる（実測48px→72px）。空文字のときは`height:auto`＝`rows="1"`の自然な高さに任せる
+  - **`box-sizing:border-box`**なので`scrollHeight`（枠線を含まない）をそのまま`height`に入れると文字が2px切れる。枠線幅を足す
+  - **600px以下は入力欄を独立行にしている**（`flex-wrap:wrap`＋`order:-1`＋`flex-basis:100%`）。横一列だと入力欄が182pxしか取れず1行11文字で、placeholderすら切れる。独立行なら311pxで長文も全文見える。**このメディアクエリは`.chat-input-row textarea{flex:1}`より必ず後ろに置くこと**——同詳細度なので前に置くと`flex:1`（＝`flex-basis:0%`）に打ち消され、折り返しが起きない（実際に嵌まった）
+  - **📷・🎤・送信は`height:48px`＋flex中央寄せで高さを固定**。中身が絵文字と日本語で行ボックスの高さが変わり、パディング任せだと49pxと55pxにずれる。**`align-items:stretch`でも`line-height`の明示でも揃わなかった**（両方試して失敗）
 - CSSの`.reveal-left`/`.reveal-right`は要素を左右に48pxずらすため、モバイルでは横スクロールが出る。`html`/`body`への`overflow-x`はビューポートに伝播せず効かないので、700px以下では縦方向のフェードに切り替えて回避している
 
 ## 会話の運び方（ユーザーの好み）
