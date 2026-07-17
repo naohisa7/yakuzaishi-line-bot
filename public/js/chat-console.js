@@ -899,6 +899,7 @@
       const data = await res.json();
       if (data.ok) {
         consoleInput.value = '';
+        window.autoGrowTextarea(consoleInput); // 伸びた高さを1行に戻す
         await refreshThread();
         // 返信すると「薬剤師対応中（AI停止）」になるので、その表示を反映する
         await loadPatients();
@@ -914,8 +915,13 @@
   }
 
   consoleSendButton.addEventListener('click', sendMessage);
+
+  // 入力量に応じて入力欄の高さを伸ばす（長文を最初から最後まで見返せるように）
+  consoleInput.addEventListener('input', () => window.autoGrowTextarea(consoleInput));
+
   consoleInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.isComposing) {
+    // Shift+Enter は改行（textareaの既定に任せる）。Enter だけなら従来どおり送信。
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
       sendMessage();
     }

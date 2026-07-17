@@ -167,3 +167,30 @@
     });
   }
 })();
+
+/**
+ * チャットの入力欄（textarea）を、入力量に応じて縦に伸ばす
+ *
+ * 単一行の input だと長文が横に流れて、書いた内容を最初から最後まで見返せない。
+ * textarea で折り返したうえで、ここで高さを内容に合わせる。
+ * CSSの max-height を超えたぶんは textarea 内スクロールになる（画面を食い潰さない）。
+ *
+ * 患者用チャットと薬剤師コンソールで共用。
+ */
+window.autoGrowTextarea = function (el) {
+  if (!el) return;
+  // 一度 auto に戻さないと scrollHeight が縮まず、文字を消しても高さが戻らない
+  el.style.height = 'auto';
+
+  // 空のときは rows="1" の自然な高さ（height:auto）に任せる。
+  // **placeholder は scrollHeight に含まれる**ため、折り返す長さの placeholder だと
+  // 空欄なのに2行分の高さになってしまう（実測：1行48pxのはずが、
+  // 「お薬について相談する」が2行に折り返して72pxになった）。
+  if (el.value === '') return;
+
+  // box-sizing:border-box なので、枠線を含まない scrollHeight をそのまま height に
+  // 入れると枠線ぶん足りず、文字が僅かに切れる。枠線を足して自然な高さに揃える。
+  const cs = getComputedStyle(el);
+  const borders = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+  el.style.height = el.scrollHeight + borders + 'px';
+};

@@ -506,11 +506,29 @@ label {
   padding: 12px;
   background: #fff;
   border-top: 1px solid #E5E7EB;
+  /* 入力欄が伸びてもボタンは下端に揃える（center だと真ん中に浮いて不格好） */
+  align-items: flex-end;
 }
 
 .chat-input-row input[type="text"] {
   flex: 1;
   margin-bottom: 0;
+}
+
+/* 入力欄は textarea。単一行の input だと長文が横に流れて、書いた先頭が見えなくなる。
+   折り返したうえで、入力量に応じて JS（autoGrowTextarea）が高さを伸ばす。 */
+.chat-input-row textarea {
+  flex: 1;
+  margin-bottom: 0;
+  resize: none; /* 伸縮はJSが担うので、手動リサイズのつまみは出さない */
+  overflow-y: auto;
+  /* これを超えたら textarea 内をスクロール。モバイルは入力欄が186px幅しかなく
+     （📷・🎤・送信ボタンが場所を取るため）1行あたり11文字ほどなので、狭いと
+     すぐ内部スクロールに落ちて「書いた内容を見返せない」不満が残る。
+     一方で大きすぎるとチャット履歴を潰すため、9行ぶんで妥協している。 */
+  max-height: 220px;
+  line-height: 1.5;
+  font-family: inherit; /* textareaの既定は monospace。指定しないとチャットだけ書体が変わる */
 }
 
 .chat-input-row button,

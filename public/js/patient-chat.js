@@ -655,8 +655,12 @@
   messageInput.addEventListener('compositionend', () => {
     isComposing = false;
   });
+  // 入力量に応じて入力欄の高さを伸ばす（長文を最初から最後まで見返せるように）
+  messageInput.addEventListener('input', () => window.autoGrowTextarea(messageInput));
+
   messageInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !isComposing && !e.isComposing) {
+    // Shift+Enter は改行（textareaの既定に任せる）。Enter だけなら従来どおり送信。
+    if (e.key === 'Enter' && !e.shiftKey && !isComposing && !e.isComposing) {
       e.preventDefault();
       sendMessage();
     }
@@ -679,10 +683,12 @@
 
     addBubble('user', text || '（写真を送信しました）');
     input.value = '';
+    window.autoGrowTextarea(input); // 伸びた高さを1行に戻す
     // 一部のIME環境では確定直後に元の文字列がinputへ書き戻されることがあるため、
     // 次のティックで再度クリアして確実に空にする
     setTimeout(() => {
       input.value = '';
+      window.autoGrowTextarea(input);
     }, 0);
 
     const formData = new FormData();
