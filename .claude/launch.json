@@ -210,6 +210,45 @@
       ],
       "port": 4800,
       "autoPort": false
+    },
+    {
+      "name": "shadow-ui",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4810",
+        "--directory",
+        "/Users/naohisa/Downloads/figma-generators/plugins/shadow/dist"
+      ],
+      "port": 4810,
+      "autoPort": false
+    },
+    {
+      "name": "pattern-ui",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4811",
+        "--directory",
+        "/Users/naohisa/Downloads/figma-generators/plugins/pattern/dist"
+      ],
+      "port": 4811,
+      "autoPort": false
+    },
+    {
+      "name": "waves-ui",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4812",
+        "--directory",
+        "/Users/naohisa/Downloads/figma-generators/plugins/waves/dist"
+      ],
+      "port": 4812,
+      "autoPort": false
     }
   ]
 }
