@@ -4,8 +4,212 @@
     {
       "name": "line-bot-server",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["start"],
+      "runtimeArgs": [
+        "start"
+      ],
       "port": 3000
+    },
+    {
+      "name": "ocean-hotel-lp-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/ocean-hotel-lp && npm run dev -- -p 3100"
+      ],
+      "port": 3100,
+      "autoPort": false
+    },
+    {
+      "name": "maison-takumi-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/maison-takumi && npm run dev -- -p 3200"
+      ],
+      "port": 3200,
+      "autoPort": false
+    },
+    {
+      "name": "yui-pharmacy-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/yui-pharmacy && npm run dev -- -p 3300"
+      ],
+      "port": 3300,
+      "autoPort": false
+    },
+    {
+      "name": "monolith-studio-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/monolith-studio && npm run dev -- -p 3400"
+      ],
+      "port": 3400,
+      "autoPort": false
+    },
+    {
+      "name": "hokuto-seminar-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/hokuto-seminar && npm run dev -- -p 3500"
+      ],
+      "port": 3500,
+      "autoPort": false
+    },
+    {
+      "name": "sou-motors-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/sou-motors && npm run dev -- -p 3600"
+      ],
+      "port": 3600,
+      "autoPort": false
+    },
+    {
+      "name": "takarabiki-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/takarabiki && npm run dev -- -p 3700"
+      ],
+      "port": 3700,
+      "autoPort": false
+    },
+    {
+      "name": "yohaku-coffee-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/yohaku-coffee && npm run dev -- -p 3800"
+      ],
+      "port": 3800,
+      "autoPort": false
+    },
+    {
+      "name": "shirushi-studio-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/shirushi-studio && npm run dev -- -p 3900"
+      ],
+      "port": 3900,
+      "autoPort": false
+    },
+    {
+      "name": "shippo-biyori-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/shippo-biyori && npm run dev -- -p 4000"
+      ],
+      "port": 4000,
+      "autoPort": false
+    },
+    {
+      "name": "sumika-homes-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/sumika-homes && npm run dev -- -p 4100"
+      ],
+      "port": 4100,
+      "autoPort": false
+    },
+    {
+      "name": "rin-salon-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/rin-salon && npm run dev -- -p 4200"
+      ],
+      "port": 4200,
+      "autoPort": false
+    },
+    {
+      "name": "stopima-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/stopima && npm run dev -- -p 4300"
+      ],
+      "port": 4300,
+      "autoPort": false
+    },
+    {
+      "name": "datacharts-ui",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4400",
+        "--directory",
+        "/Users/naohisa/Downloads/datacharts/src"
+      ],
+      "port": 4400,
+      "autoPort": false
+    },
+    {
+      "name": "datacharts-widget-gallery",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4500",
+        "--directory",
+        "/Users/naohisa/Downloads/datacharts-widget/gallery"
+      ],
+      "port": 4500,
+      "autoPort": false
+    },
+    {
+      "name": "voxel-saga-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/voxel-saga && npm run dev"
+      ],
+      "port": 4500,
+      "autoPort": false
+    },
+    {
+      "name": "funsai-app-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/naohisa/Downloads/funsai-app && npm run dev -- -p 4600"
+      ],
+      "port": 4600,
+      "autoPort": false
+    },
+    {
+      "name": "perspective4k-ui",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4700",
+        "--directory",
+        "/Users/naohisa/Downloads/perspective-4k/dist"
+      ],
+      "port": 4700,
+      "autoPort": false
+    },
+    {
+      "name": "coverset-ui",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4800",
+        "--directory",
+        "/Users/naohisa/Downloads/coverset/dist"
+      ],
+      "port": 4800,
+      "autoPort": false
     }
   ]
 }
