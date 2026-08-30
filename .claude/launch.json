@@ -249,6 +249,69 @@
       ],
       "port": 4812,
       "autoPort": false
+    },
+    {
+      "name": "traceset-lab",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4813",
+        "--directory",
+        "/Users/naohisa/Downloads/figma-generators/plugins/traceset/tools/lab"
+      ],
+      "port": 4813,
+      "autoPort": false
+    },
+    {
+      "name": "traceset-ui",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4814",
+        "--directory",
+        "/Users/naohisa/Downloads/figma-generators/plugins/traceset/dist"
+      ],
+      "port": 4814,
+      "autoPort": false
+    },
+    {
+      "name": "flowlight-ui",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4820",
+        "--directory",
+        "/Users/naohisa/Downloads/flowlight/dist"
+      ],
+      "port": 4820
+    },
+    {
+      "name": "exactframe-ui",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4821",
+        "--directory",
+        "/Users/naohisa/Downloads/exactframe/dist"
+      ],
+      "port": 4821
+    },
+    {
+      "name": "repeatset-ui",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4815",
+        "--directory",
+        "/Users/naohisa/Downloads/figma-generators/plugins/repeatset/dist"
+      ],
+      "port": 4815,
+      "autoPort": false
     }
   ]
 }
