@@ -108,6 +108,17 @@ render deploys list srv-d92jmgvavr4c738etvq0 -o json --confirm
 
 Redis: `red-d933s79kh4rs739erea0`。ローカル開発機のIPはallowlist対象外なので、Redis依存のAPIはローカルでは常に失敗する（想定内、`fetch`をモックして描画確認する）。
 
+- ⛔⛔ **`git push` だけでは本番に出ない。** 設定上は Auto-Deploy が「On Commit」なのに、
+  **pushから7分待っても発火しなかった**（2026-10-23に実測）。デプロイ履歴も全部 `api`/`manual` で、
+  commit起点のものが一件も無い＝GitHub連携のフックが効いていない。**必ず上の `render deploys create` を打つこと**
+- ⛔ **`render` CLIのトークンは切れる。**`Error: your token is expired` が出たら `render login`（ユーザー操作が要る）
+- ⛔ **Nodeのバージョンは `.node-version` と `package.json` の `engines` の両方に書く**（現在 22.23.4）。
+  書かないとサービス作成時の既定のまま固定され、**何か月デプロイしてもNodeのセキュリティ修正が入らない**。
+  ビルドログの `==> Using Node.js version ...` で実際に使われた版を必ず確認する
+- ⚠️ **依存の更新は `npm audit --omit=dev` で見る。**Renderのビルドログが出す件数は開発用（`nodemon`）を含むので
+  本番の実態とずれる。2026-10-23時点で本番側は0件、残る high 3件は `nodemon` の `chokidar` 由来で
+  **上流に修正版が無い**（nodemon 3.1.14 が `chokidar@^3.5.2` のまま）。本番では実行されないので放置でよい
+
 ## 既知の制約
 
 - LINE患者の会話履歴（`conversationManager.js`）はメモリ内のみ→再起動で消える。Web患者側（`webConversationManager.js`）はRedis永続化
